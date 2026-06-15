@@ -23,18 +23,6 @@ jobs:
       - name: Install production dependencies
         run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
-      - name: Upload release files
-        uses: easingthemes/ssh-deploy@v5.1.0
-        with:
-          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          REMOTE_HOST: 123.6.146.63
-          REMOTE_USER: root
-          REMOTE_PORT: 22
-          SOURCE: "./"
-          TARGET: "/www/wwwroot/2026hpeapi.hzblzh.com"
-          ARGS: "-rlgoDzvc --delete"
-          EXCLUDE: "/.git/, /.github/, /.env, /storage/, /database/*.sqlite, /node_modules/, /tests/"
-
       - name: Run remote Laravel commands
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -43,7 +31,16 @@ jobs:
           port: 22
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            set -e
             cd /www/wwwroot/2026hpeapi.hzblzh.com
+            if [ ! -d .git ]; then
+              find . -mindepth 1 -maxdepth 1 ! -name ".env" ! -name ".user.ini" ! -name "storage" ! -name "database" -exec rm -rf {} \;
+              git clone https://github.com/lzy497066369/2026hpe_hou.git .
+            else
+              git fetch origin main
+              git reset --hard origin/main
+            fi
+            composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
             if [ ! -f .env ]; then cp .env.example .env; fi
             if [ ! -f database/database.sqlite ]; then touch database/database.sqlite; fi
             if ! grep -q '^APP_KEY=base64:' .env; then php artisan key:generate --force; fi
