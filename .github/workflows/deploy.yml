@@ -37,8 +37,8 @@ jobs:
               find . -mindepth 1 -maxdepth 1 ! -name ".env" ! -name ".user.ini" ! -name "storage" ! -name "database" -exec rm -rf {} \;
               git clone https://github.com/lzy497066369/2026hpe_hou.git .
             else
-              git fetch origin main
-              git reset --hard origin/main
+              git fetch origin main:refs/remotes/origin/main
+              git reset --hard refs/remotes/origin/main
             fi
             composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
             if [ ! -f .env ]; then cp .env.example .env; fi
