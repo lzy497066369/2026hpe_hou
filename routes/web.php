@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use Throwable;
 
 Route::get('/', function () {
     try {
@@ -21,7 +20,7 @@ Route::get('/', function () {
             ],
             'checkedAt' => now()->toISOString(),
         ]);
-    } catch (Throwable $error) {
+    } catch (\Throwable $error) {
         return response()->json([
             'status' => 'error',
             'service' => '2026-hpe-api',
