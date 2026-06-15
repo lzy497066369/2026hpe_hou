@@ -1,0 +1,58 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          tools: composer:v2
+          coverage: none
+
+      - name: Install production dependencies
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+
+      - name: Upload release files
+        uses: easingthemes/ssh-deploy@v5.1.0
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          REMOTE_HOST: 123.6.146.63
+          REMOTE_USER: root
+          REMOTE_PORT: 22
+          SOURCE: "./"
+          TARGET: "/www/wwwroot/2026hpeapi.hzblzh.com"
+          ARGS: "-rlgoDzvc --delete"
+          EXCLUDE: "/.git/, /.github/, /.env, /storage/, /database/*.sqlite, /node_modules/, /tests/"
+
+      - name: Run remote Laravel commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 123.6.146.63
+          username: root
+          port: 22
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /www/wwwroot/2026hpeapi.hzblzh.com
+            if [ ! -f .env ]; then cp .env.example .env; fi
+            if [ ! -f database/database.sqlite ]; then touch database/database.sqlite; fi
+            if ! grep -q '^APP_KEY=base64:' .env; then php artisan key:generate --force; fi
+            php artisan migrate --force
+            php artisan storage:link || true
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan route:clear
+            php artisan view:clear
+            php artisan config:cache
+            php artisan route:cache
+            chown -R www:www storage bootstrap/cache database/database.sqlite
