@@ -10,10 +10,25 @@ class ExampleTest extends TestCase
     /**
      * A basic test example.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_application_returns_mysql_database_status(): void
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        $this->assertContains($response->getStatusCode(), [200, 503]);
+
+        $response
+            ->assertJsonPath('service', '2026-hpe-api')
+            ->assertJsonPath('database.driver', 'mysql')
+            ->assertJsonStructure([
+                'status',
+                'service',
+                'database' => [
+                    'driver',
+                    'connected',
+                ],
+                'checkedAt',
+            ]);
+
+        $this->assertIsBool($response->json('database.connected'));
     }
 }
