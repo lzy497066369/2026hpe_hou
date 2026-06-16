@@ -42,7 +42,6 @@ jobs:
             fi
             composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
             if [ ! -f .env ]; then cp .env.example .env; fi
-            if [ ! -f database/database.sqlite ]; then touch database/database.sqlite; fi
             if ! grep -q '^APP_KEY=base64:' .env; then php artisan key:generate --force; fi
             php artisan migrate --force
             php artisan storage:link || true
@@ -52,4 +51,4 @@ jobs:
             php artisan view:clear
             php artisan config:cache
             php artisan route:cache
-            chown -R www:www storage bootstrap/cache database/database.sqlite
+            chown -R www:www storage bootstrap/cache
