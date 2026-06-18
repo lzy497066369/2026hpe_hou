@@ -225,3 +225,465 @@ body.fi-body {
     color: var(--admin-text-strong);
     background: var(--admin-surface-muted);
 }
+
+.award-settlement-workspace {
+    display: grid;
+    gap: 1rem;
+}
+
+.award-settlement-actions {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.award-settlement-action-card {
+    position: relative;
+    display: grid;
+    align-content: space-between;
+    gap: 0.65rem;
+    min-height: 12.5rem;
+    padding: 1rem;
+    overflow: hidden;
+    color: var(--admin-text);
+    text-align: left;
+    background:
+        radial-gradient(circle at 86% 12%, color-mix(in srgb, var(--admin-accent) 24%, transparent), transparent 34%),
+        linear-gradient(145deg, color-mix(in srgb, var(--admin-surface-soft) 78%, transparent), var(--admin-surface) 62%),
+        var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: 1.25rem;
+    box-shadow: var(--admin-shadow-soft);
+    transition:
+        transform 160ms ease,
+        border-color 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.award-settlement-action-card::after {
+    position: absolute;
+    right: -2rem;
+    bottom: -2rem;
+    width: 5.75rem;
+    height: 5.75rem;
+    pointer-events: none;
+    content: '';
+    background: color-mix(in srgb, var(--admin-primary) 10%, transparent);
+    border-radius: 999px;
+}
+
+.award-settlement-action-card:hover {
+    border-color: var(--admin-border-strong);
+    box-shadow: var(--admin-shadow);
+    transform: translateY(-2px);
+}
+
+.award-settlement-action-card--primary {
+    background:
+        radial-gradient(circle at 86% 12%, color-mix(in srgb, var(--admin-accent) 32%, transparent), transparent 34%),
+        linear-gradient(145deg, color-mix(in srgb, var(--admin-primary) 16%, var(--admin-surface)), var(--admin-surface) 62%),
+        var(--admin-surface);
+    border-color: var(--admin-border-strong);
+}
+
+.award-settlement-action-card__content,
+.award-settlement-action-card__buttons,
+.award-settlement-action-card__button {
+    position: relative;
+    z-index: 1;
+}
+
+.award-settlement-action-card__badge {
+    justify-self: start;
+    min-height: 1.65rem;
+    padding: 0 0.6rem;
+    color: var(--admin-text-strong);
+    font-size: 0.74rem;
+    font-weight: 900;
+    line-height: 1.65rem;
+    background: var(--admin-surface-muted);
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+}
+
+.award-settlement-action-card__title {
+    margin: 0.75rem 0 0;
+    color: var(--admin-text-strong);
+    font-size: 1.05rem;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.award-settlement-action-card__meta {
+    margin: 0.55rem 0 0;
+    color: var(--admin-muted);
+    font-size: 0.82rem;
+    font-weight: 800;
+    line-height: 1.45;
+}
+
+.award-settlement-action-card__buttons {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.award-settlement-action-card__button {
+    min-height: 2.35rem;
+    padding: 0 0.9rem;
+    color: #ffffff;
+    font-size: 0.84rem;
+    font-weight: 900;
+    cursor: pointer;
+    background: var(--admin-primary);
+    border: 1px solid color-mix(in srgb, var(--admin-primary) 72%, #000000 12%);
+    border-radius: 999px;
+    box-shadow: 0 10px 20px color-mix(in srgb, var(--admin-primary) 18%, transparent);
+    transition:
+        background 160ms ease,
+        transform 160ms ease;
+}
+
+.award-settlement-action-card__button:hover,
+.award-settlement-action-card__button:focus-visible {
+    background: var(--admin-primary-hover);
+    transform: translateY(-1px);
+}
+
+.award-settlement-action-card__button:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--admin-primary) 24%, transparent);
+    outline-offset: 3px;
+}
+
+.award-settlement-utility-button {
+    min-height: 2.35rem;
+    padding: 0 0.9rem;
+    color: var(--admin-text-strong);
+    font-size: 0.84rem;
+    font-weight: 900;
+    cursor: pointer;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border-strong);
+    border-radius: 999px;
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--admin-primary) 8%, transparent);
+    transition:
+        color 160ms ease,
+        background 160ms ease,
+        transform 160ms ease;
+}
+
+.award-settlement-utility-button:hover,
+.award-settlement-utility-button:focus-visible {
+    color: #ffffff;
+    background: var(--admin-primary);
+    transform: translateY(-1px);
+}
+
+.award-settlement-utility-button:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--admin-primary) 24%, transparent);
+    outline-offset: 3px;
+}
+
+.award-settlement-overview {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.award-settlement-card {
+    position: relative;
+    min-height: 13rem;
+    padding: 1.25rem;
+    overflow: hidden;
+    color: var(--admin-text);
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--admin-surface-soft) 72%, transparent), var(--admin-surface) 58%),
+        var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: 1.25rem;
+    box-shadow: var(--admin-shadow-soft);
+}
+
+.award-settlement-card::after {
+    position: absolute;
+    right: -2.5rem;
+    bottom: -2.5rem;
+    width: 8rem;
+    height: 8rem;
+    pointer-events: none;
+    content: '';
+    background: color-mix(in srgb, var(--admin-primary) 10%, transparent);
+    border-radius: 999px;
+}
+
+.award-settlement-card--primary {
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--admin-primary) 14%, var(--admin-surface)), var(--admin-surface) 62%),
+        var(--admin-surface);
+}
+
+.award-settlement-card__kicker {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.75rem;
+    padding: 0 0.65rem;
+    color: var(--admin-text-strong);
+    font-size: 0.78rem;
+    font-weight: 900;
+    line-height: 1;
+    background: var(--admin-surface-muted);
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+}
+
+.award-settlement-card h2 {
+    margin: 0.9rem 0 0;
+    color: var(--admin-text-strong);
+    font-size: 1.2rem;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.award-settlement-card p {
+    margin: 0.65rem 0 0;
+    color: var(--admin-muted);
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.7;
+}
+
+.award-settlement-card__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.award-settlement-card__tags span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.75rem;
+    padding: 0 0.65rem;
+    color: var(--admin-text);
+    font-size: 0.78rem;
+    font-weight: 800;
+    background: color-mix(in srgb, var(--admin-primary) 7%, var(--admin-surface));
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+}
+
+.award-settlement-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.award-settlement-list__summary {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    width: max-content;
+    padding: 0.55rem 0.8rem;
+    color: var(--admin-muted);
+    font-size: 0.9rem;
+    font-weight: 800;
+    background: var(--admin-surface-soft);
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+}
+
+.award-settlement-list__summary strong {
+    color: var(--admin-text-strong);
+    font-size: 1.25rem;
+    font-weight: 900;
+}
+
+.award-settlement-empty {
+    display: grid;
+    justify-items: center;
+    gap: 0.35rem;
+    padding: 2rem;
+    color: var(--admin-muted);
+    text-align: center;
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--admin-surface-soft) 80%, transparent), var(--admin-surface)),
+        var(--admin-surface);
+    border: 1px dashed var(--admin-border-strong);
+    border-radius: 1.25rem;
+}
+
+.award-settlement-empty strong {
+    color: var(--admin-text-strong);
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.award-settlement-records {
+    display: grid;
+    gap: 0.85rem;
+    max-height: min(68vh, 44rem);
+    padding-right: 0.25rem;
+    overflow-y: auto;
+}
+
+.award-settlement-record {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.95rem;
+    padding: 1rem;
+    color: var(--admin-text);
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--admin-surface-soft) 70%, transparent), var(--admin-surface) 60%),
+        var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: 1.1rem;
+    box-shadow: var(--admin-shadow-soft);
+}
+
+.award-settlement-record__avatar {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    color: var(--admin-text-strong);
+    font-size: 1.15rem;
+    font-weight: 900;
+    background: var(--admin-surface-muted);
+    border: 1px solid var(--admin-border-strong);
+    border-radius: 0.9rem;
+}
+
+.award-settlement-record__main {
+    min-width: 0;
+}
+
+.award-settlement-record__header {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.award-settlement-record__header h3 {
+    margin: 0;
+    color: var(--admin-text-strong);
+    font-size: 1rem;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.award-settlement-record__header p {
+    margin: 0.25rem 0 0;
+    color: var(--admin-muted);
+    font-size: 0.86rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.award-settlement-record__status {
+    flex: none;
+    max-width: 16rem;
+    padding: 0.38rem 0.62rem;
+    color: var(--admin-muted);
+    font-size: 0.78rem;
+    font-weight: 900;
+    line-height: 1.25;
+    text-align: right;
+    background: var(--admin-surface-soft);
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+}
+
+.award-settlement-record__status--success {
+    color: #15803d;
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.25);
+}
+
+.award-settlement-record__status--danger {
+    color: #b91c1c;
+    background: rgba(248, 113, 113, 0.13);
+    border-color: rgba(248, 113, 113, 0.28);
+}
+
+:root.dark .award-settlement-record__status--success {
+    color: #86efac;
+}
+
+:root.dark .award-settlement-record__status--danger {
+    color: #fca5a5;
+}
+
+.award-settlement-record__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0.9rem 0 0;
+}
+
+.award-settlement-record__grid div {
+    min-width: 0;
+    padding: 0.75rem;
+    background: color-mix(in srgb, var(--admin-surface-soft) 78%, transparent);
+    border: 1px solid var(--admin-border);
+    border-radius: 0.85rem;
+}
+
+.award-settlement-record__grid dt {
+    color: var(--admin-muted);
+    font-size: 0.74rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.award-settlement-record__grid dd {
+    margin: 0.45rem 0 0;
+    overflow: hidden;
+    color: var(--admin-text);
+    font-size: 0.88rem;
+    font-weight: 800;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+    .award-settlement-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .award-settlement-overview {
+        grid-template-columns: 1fr;
+    }
+
+    .award-settlement-record__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .award-settlement-record__header {
+        display: grid;
+    }
+
+    .award-settlement-record__status {
+        max-width: 100%;
+        text-align: left;
+        border-radius: 0.85rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .award-settlement-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .award-settlement-action-card {
+        min-height: 0;
+    }
+
+    .award-settlement-action-card__buttons,
+    .award-settlement-action-card__button,
+    .award-settlement-utility-button {
+        width: 100%;
+    }
+}

@@ -30,7 +30,7 @@ class WorkController extends Controller
     public function show(string $workId, WorkService $service): JsonResponse
     {
         return ApiResponse::success(
-            (new WorkResource($service->detail($workId)))->resolve()
+            (new WorkResource($service->detail($workId, app(CurrentUserResolver::class)->resolve(request()))))->resolve()
         );
     }
 

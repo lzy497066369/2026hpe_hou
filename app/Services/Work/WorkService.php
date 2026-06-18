@@ -68,12 +68,23 @@ class WorkService
     /**
      * @return array<string, mixed>
      */
-    public function detail(string $workId): array
+    public function detail(string $workId, ?User $viewer = null): array
     {
-        $work = Work::query()
+        $query = Work::query()
             ->with(['user', 'coverFile', 'contentFile'])
-            ->where('publish_status', WorkPublishStatus::Published->value)
-            ->findOrFail($workId);
+            ->where('id', $workId);
+
+        if ($viewer === null) {
+            $query->where('publish_status', WorkPublishStatus::Published->value);
+        } else {
+            $query->where(function ($builder) use ($viewer): void {
+                $builder
+                    ->where('publish_status', WorkPublishStatus::Published->value)
+                    ->orWhere('user_id', $viewer->id);
+            });
+        }
+
+        $work = $query->firstOrFail();
 
         return $this->formatWork($work);
     }

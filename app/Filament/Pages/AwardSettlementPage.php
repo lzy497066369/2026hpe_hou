@@ -31,49 +31,76 @@ class AwardSettlementPage extends Page
      */
     protected function getHeaderActions(): array
     {
-        return [
-            $this->awardAction(
-                'awardTalent',
-                '才艺大赛奖',
-                fn (AwardSettlementService $service): array => $service->previewTalentAwards(),
-                fn (AwardSettlementService $service): array => $service->awardTalentAwards(),
-                '确认后将按四个赛道各前 15 名发放，并包含第 15 名同票并列用户。'
-            ),
-            $this->awardAction(
-                'awardGame',
-                '线上小游戏奖',
-                fn (AwardSettlementService $service): array => $service->previewGameAwards(),
-                fn (AwardSettlementService $service): array => $service->awardGameAwards(),
-                '确认后将按最高分前 10 名发放，并包含第 10 名同分并列用户。'
-            ),
-            $this->awardAction(
-                'awardParticipation',
-                '阳光普照奖',
-                fn (AwardSettlementService $service): array => $service->previewParticipationAwards(),
-                fn (AwardSettlementService $service): array => $service->awardParticipationAwards(),
-                '确认后将发放给已发布作品且玩过游戏，并且未获得才艺大赛奖/线上小游戏奖的用户。'
-            ),
-            $this->listAction(
-                'fragranceWinners',
-                '手有余香获奖名单',
-                fn (AwardSettlementService $service): array => $service->fragranceWinners(),
-            ),
-            $this->listAction(
-                'fragranceCandidates',
-                '手有余香权重列表',
-                fn (AwardSettlementService $service): array => $service->fragranceCandidates(),
-            ),
-            $this->listAction(
-                'dreamParkWinners',
-                '逐梦乐园获奖名单',
-                fn (AwardSettlementService $service): array => $service->dreamParkWinners(),
-            ),
-            $this->listAction(
-                'dreamParkCandidates',
-                '逐梦乐园可抽奖名单',
-                fn (AwardSettlementService $service): array => $service->dreamParkCandidates(),
-            ),
-        ];
+        return [];
+    }
+
+    protected function awardTalentAction(): Action
+    {
+        return $this->awardAction(
+            'awardTalent',
+            '才艺大赛奖',
+            fn (AwardSettlementService $service): array => $service->previewTalentAwards(),
+            fn (AwardSettlementService $service): array => $service->awardTalentAwards(),
+            '确认后将按四个赛道各前 15 名发放，并包含第 15 名同票并列用户。'
+        );
+    }
+
+    protected function awardGameAction(): Action
+    {
+        return $this->awardAction(
+            'awardGame',
+            '线上小游戏奖',
+            fn (AwardSettlementService $service): array => $service->previewGameAwards(),
+            fn (AwardSettlementService $service): array => $service->awardGameAwards(),
+            '确认后将按最高分前 10 名发放，并包含第 10 名同分并列用户。'
+        );
+    }
+
+    protected function awardParticipationAction(): Action
+    {
+        return $this->awardAction(
+            'awardParticipation',
+            '阳光普照奖',
+            fn (AwardSettlementService $service): array => $service->previewParticipationAwards(),
+            fn (AwardSettlementService $service): array => $service->awardParticipationAwards(),
+            '确认后将发放给已发布作品且玩过游戏，并且未获得才艺大赛奖/线上小游戏奖的用户。'
+        );
+    }
+
+    protected function fragranceWinnersAction(): Action
+    {
+        return $this->listAction(
+            'fragranceWinners',
+            '手有余香获奖名单',
+            fn (AwardSettlementService $service): array => $service->fragranceWinners(),
+        );
+    }
+
+    protected function fragranceCandidatesAction(): Action
+    {
+        return $this->listAction(
+            'fragranceCandidates',
+            '手有余香权重列表',
+            fn (AwardSettlementService $service): array => $service->fragranceCandidates(),
+        );
+    }
+
+    protected function dreamParkWinnersAction(): Action
+    {
+        return $this->listAction(
+            'dreamParkWinners',
+            '逐梦乐园获奖名单',
+            fn (AwardSettlementService $service): array => $service->dreamParkWinners(),
+        );
+    }
+
+    protected function dreamParkCandidatesAction(): Action
+    {
+        return $this->listAction(
+            'dreamParkCandidates',
+            '逐梦乐园可抽奖名单',
+            fn (AwardSettlementService $service): array => $service->dreamParkCandidates(),
+        );
     }
 
     /**

@@ -21,6 +21,7 @@ class WorksTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->defaultSort('submitted_at', 'desc')
             ->columns([
                 ImageColumn::make('coverFile.url')
                     ->label('作品封面')

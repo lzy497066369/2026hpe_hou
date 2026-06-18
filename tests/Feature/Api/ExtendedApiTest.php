@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\WorkPublishStatus;
 use App\Enums\RegistrationAuditStatus;
 use App\Enums\UploadUsageType;
 use App\Models\User;
@@ -74,6 +75,11 @@ class ExtendedApiTest extends TestCase
         $this->withHeaders($headers)->getJson('/api/v1/works/mine')
             ->assertOk()
             ->assertJsonPath('data.items.0.id', $workId);
+
+        $this->withHeaders($headers)->getJson('/api/v1/works/'.$workId)
+            ->assertOk()
+            ->assertJsonPath('data.id', $workId)
+            ->assertJsonPath('data.publishStatus', WorkPublishStatus::Hidden->value);
 
         $this->withHeaders($headers)->postJson('/api/v1/game/records', [
             'distance' => 1200,
