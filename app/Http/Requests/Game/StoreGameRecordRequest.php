@@ -17,9 +17,9 @@ class StoreGameRecordRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'distance' => ['required', 'integer', 'min:0'],
-            'score' => ['required', 'integer', 'min:0'],
-            'duration' => ['required', 'integer', 'min:0'],
+            'distance' => ['required', 'integer', 'min:0', 'max:100000'],
+            'score' => ['required', 'integer', 'min:0', 'max:300000'],
+            'duration' => ['required', 'integer', 'min:1', 'max:3600'],
         ];
     }
 }

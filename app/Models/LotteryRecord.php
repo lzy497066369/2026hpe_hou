@@ -25,6 +25,11 @@ class LotteryRecord extends Model
         return $this->belongsTo(Prize::class);
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function prizeClaim()
     {
         return $this->hasOne(PrizeClaim::class);

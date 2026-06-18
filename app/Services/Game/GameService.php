@@ -4,6 +4,7 @@ namespace App\Services\Game;
 
 use App\Models\GameRecord;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class GameService
 {
@@ -13,13 +14,33 @@ class GameService
      */
     public function store(User $user, array $payload): array
     {
-        $record = GameRecord::query()->create([
-            'user_id' => $user->id,
-            'distance' => $payload['distance'],
-            'score' => $payload['score'],
-            'duration' => $payload['duration'],
-            'played_at' => now(),
-        ]);
+        $record = DB::transaction(function () use ($user, $payload): GameRecord {
+            $existing = GameRecord::query()
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing === null) {
+                return GameRecord::query()->create([
+                    'user_id' => $user->id,
+                    'distance' => $payload['distance'],
+                    'score' => $payload['score'],
+                    'duration' => $payload['duration'],
+                    'played_at' => now(),
+                ]);
+            }
+
+            if ($this->isBetterRecord($payload, $existing)) {
+                $existing->fill([
+                    'distance' => $payload['distance'],
+                    'score' => $payload['score'],
+                    'duration' => $payload['duration'],
+                    'played_at' => now(),
+                ])->save();
+            }
+
+            return $existing->fresh() ?? $existing;
+        });
 
         return $this->formatRecord($record);
     }
@@ -86,5 +107,13 @@ class GameService
             'rank' => $betterCount + 1,
             'playedAt' => $record->played_at?->toISOString(),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function isBetterRecord(array $payload, GameRecord $record): bool
+    {
+        return (int) $payload['score'] > $record->score;
     }
 }

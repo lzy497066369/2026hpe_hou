@@ -24,6 +24,7 @@ class AdminProductionApiTest extends TestCase
             'name' => 'Demo User',
             'email' => 'demo@example.com',
             'employee_no' => 'E0001',
+            'nickname' => 'demo',
             'password' => 'unused',
             'status' => 'active',
         ]);
@@ -31,6 +32,7 @@ class AdminProductionApiTest extends TestCase
         $response = $this->postJson('/api/v1/auth/login', [
             'employeeNo' => 'E0001',
             'email' => 'demo@example.com',
+            'nickname' => 'demo',
         ]);
 
         $response->assertOk();
@@ -43,6 +45,7 @@ class AdminProductionApiTest extends TestCase
             'name' => 'Admin',
             'email' => 'admin@example.com',
             'employee_no' => 'A0001',
+            'nickname' => 'admin',
             'password' => 'unused',
             'status' => 'active',
             'role' => 'admin',
@@ -51,6 +54,7 @@ class AdminProductionApiTest extends TestCase
             'name' => 'Author',
             'email' => 'author@example.com',
             'employee_no' => 'E0001',
+            'nickname' => 'author',
             'password' => 'unused',
             'status' => 'active',
         ]);
@@ -86,6 +90,7 @@ class AdminProductionApiTest extends TestCase
         $token = $this->postJson('/api/v1/auth/login', [
             'employeeNo' => $admin->employee_no,
             'email' => $admin->email,
+            'nickname' => $admin->nickname,
         ])->json('data.token');
         $headers = ['Authorization' => 'Bearer '.$token];
 

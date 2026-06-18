@@ -18,6 +18,7 @@ class ExtendedApiTest extends TestCase
             'name' => 'Demo User',
             'email' => 'demo@example.com',
             'employee_no' => 'E0001',
+            'nickname' => 'demo',
             'password' => 'unused',
             'status' => 'active',
         ]);
@@ -25,6 +26,7 @@ class ExtendedApiTest extends TestCase
         $token = $this->postJson('/api/v1/auth/login', [
             'employeeNo' => $user->employee_no,
             'email' => $user->email,
+            'nickname' => $user->nickname,
         ])->json('data.token');
         $headers = ['Authorization' => 'Bearer '.$token];
 
@@ -98,6 +100,7 @@ class ExtendedApiTest extends TestCase
             'name' => 'Admin',
             'email' => 'admin@example.com',
             'employee_no' => 'A0001',
+            'nickname' => 'admin',
             'password' => 'unused',
             'status' => 'active',
             'role' => 'admin',
@@ -107,6 +110,7 @@ class ExtendedApiTest extends TestCase
             'name' => 'Participant',
             'email' => 'participant@example.com',
             'employee_no' => 'E0002',
+            'nickname' => 'participant',
             'password' => 'unused',
             'status' => 'active',
         ])->registrationProfile()->create([
@@ -120,6 +124,7 @@ class ExtendedApiTest extends TestCase
         $token = $this->postJson('/api/v1/auth/login', [
             'employeeNo' => $admin->employee_no,
             'email' => $admin->email,
+            'nickname' => $admin->nickname,
         ])->json('data.token');
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token])
@@ -135,5 +140,134 @@ class ExtendedApiTest extends TestCase
                     'gamePlayTotalCount',
                 ],
             ]);
+    }
+
+    public function test_user_keeps_only_one_best_game_record(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Game User',
+            'email' => 'game@example.com',
+            'employee_no' => 'E0099',
+            'nickname' => 'game-user',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $token = $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => $user->employee_no,
+            'email' => $user->email,
+            'nickname' => $user->nickname,
+        ])->json('data.token');
+        $headers = ['Authorization' => 'Bearer '.$token];
+
+        $first = $this->withHeaders($headers)->postJson('/api/v1/game/records', [
+            'distance' => 1000,
+            'score' => 3000,
+            'duration' => 60,
+        ]);
+        $first->assertOk()->assertJsonPath('data.score', 3000);
+
+        $lower = $this->withHeaders($headers)->postJson('/api/v1/game/records', [
+            'distance' => 900,
+            'score' => 2800,
+            'duration' => 55,
+        ]);
+        $lower
+            ->assertOk()
+            ->assertJsonPath('data.id', $first->json('data.id'))
+            ->assertJsonPath('data.score', 3000)
+            ->assertJsonPath('data.distance', 1000);
+
+        $sameScoreLongerDistance = $this->withHeaders($headers)->postJson('/api/v1/game/records', [
+            'distance' => 1200,
+            'score' => 3000,
+            'duration' => 65,
+        ]);
+        $sameScoreLongerDistance
+            ->assertOk()
+            ->assertJsonPath('data.id', $first->json('data.id'))
+            ->assertJsonPath('data.score', 3000)
+            ->assertJsonPath('data.distance', 1000);
+
+        $betterScore = $this->withHeaders($headers)->postJson('/api/v1/game/records', [
+            'distance' => 1100,
+            'score' => 3600,
+            'duration' => 70,
+        ]);
+        $betterScore
+            ->assertOk()
+            ->assertJsonPath('data.id', $first->json('data.id'))
+            ->assertJsonPath('data.score', 3600)
+            ->assertJsonPath('data.distance', 1100);
+
+        $this->assertDatabaseCount('game_records', 1);
+        $this->assertDatabaseHas('game_records', [
+            'user_id' => $user->id,
+            'score' => 3600,
+            'distance' => 1100,
+            'duration' => 70,
+        ]);
+    }
+
+    public function test_approved_registration_user_still_needs_extra_quota_to_submit_more_than_one_work(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Approved User',
+            'email' => 'approved@example.com',
+            'employee_no' => 'E0003',
+            'nickname' => 'approved',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $user->registrationProfile()->create([
+            'employee_no' => $user->employee_no,
+            'name' => $user->name,
+            'department' => 'Demo',
+            'contact' => '13800000003',
+            'audit_status' => RegistrationAuditStatus::Approved->value,
+        ]);
+
+        $token = $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => $user->employee_no,
+            'email' => $user->email,
+            'nickname' => $user->nickname,
+        ])->json('data.token');
+        $headers = ['Authorization' => 'Bearer '.$token];
+
+        $firstFileId = $this->createCommittedWorkContentFile($user);
+        $secondFileId = $this->createCommittedWorkContentFile($user);
+
+        $this->withHeaders($headers)->postJson('/api/v1/works/submit', [
+            'type' => 'traditional',
+            'group' => 'employee',
+            'title' => 'First Work',
+            'description' => 'First demo work',
+            'contentFileId' => $firstFileId,
+        ])->assertOk();
+
+        $this->withHeaders($headers)->postJson('/api/v1/works/submit', [
+            'type' => 'ai',
+            'group' => 'employee',
+            'title' => 'Second Work',
+            'description' => 'Second demo work',
+            'contentFileId' => $secondFileId,
+        ])
+            ->assertStatus(422)
+            ->assertJsonFragment(['message' => '当前可上传作品名额已用完，请申请更多名额']);
+    }
+
+    private function createCommittedWorkContentFile(User $user): int
+    {
+        return (int) $user->uploadedFiles()->create([
+            'disk' => 'local',
+            'path' => 'uploads/work-content/'.uniqid('work_', true).'.png',
+            'url' => 'https://example.com/work.png',
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'checksum' => uniqid('checksum_', true),
+            'usage_type' => UploadUsageType::WorkContent->value,
+            'is_committed' => false,
+        ])->id;
     }
 }

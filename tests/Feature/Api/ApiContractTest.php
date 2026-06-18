@@ -7,6 +7,8 @@ use App\Enums\WorkAuditStatus;
 use App\Enums\WorkGroup;
 use App\Enums\WorkPublishStatus;
 use App\Enums\WorkType;
+use App\Models\LotteryQualification;
+use App\Models\Prize;
 use App\Models\User;
 use App\Models\Work;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,6 +24,7 @@ class ApiContractTest extends TestCase
             'name' => 'Demo User',
             'email' => 'demo@example.com',
             'employee_no' => 'E0001',
+            'nickname' => 'demo',
             'phone' => '13800000000',
             'password' => 'unused',
             'status' => 'active',
@@ -30,6 +33,7 @@ class ApiContractTest extends TestCase
             'name' => 'Author',
             'email' => 'author@example.com',
             'employee_no' => 'E0002',
+            'nickname' => 'author',
             'password' => 'unused',
             'status' => 'active',
         ]);
@@ -47,6 +51,7 @@ class ApiContractTest extends TestCase
         $token = $this->postJson('/api/v1/auth/login', [
             'employeeNo' => $user->employee_no,
             'email' => $user->email,
+            'nickname' => $user->nickname,
         ])->json('data.token');
 
         $headers = ['Authorization' => 'Bearer '.$token];
@@ -56,12 +61,26 @@ class ApiContractTest extends TestCase
         ]);
         $fileId = $policy->json('data.fileId');
 
+        LotteryQualification::query()->create([
+            'user_id' => $user->id,
+            'source_type' => 'contract-test',
+            'qualified' => true,
+            'chance_count' => 2,
+            'used_count' => 0,
+        ]);
+        Prize::query()->create([
+            'name' => 'Demo Prize',
+            'level' => 'demo',
+            'stock' => 2,
+            'status' => 'active',
+        ]);
+
         $recordId = $this->withHeaders($headers)
             ->postJson('/api/v1/lottery/draw')
             ->json('data.id');
 
         $endpoints = [
-            ['POST', '/api/v1/auth/login', ['employeeNo' => 'E0001', 'email' => 'demo@example.com']],
+            ['POST', '/api/v1/auth/login', ['employeeNo' => 'E0001', 'email' => 'demo@example.com', 'nickname' => 'demo']],
             ['GET', '/api/v1/registration/profile', [], $headers],
             ['GET', '/api/v1/works?page=1&pageSize=10'],
             ['GET', '/api/v1/works/'.$work->id],

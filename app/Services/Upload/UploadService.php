@@ -57,6 +57,7 @@ class UploadService
                 'size' => Storage::disk($file->disk)->size($file->path),
                 'mime_type' => Storage::disk($file->disk)->mimeType($file->path) ?? $file->mime_type,
                 'url' => Storage::disk($file->disk)->url($file->path),
+                'checksum' => hash('sha256', Storage::disk($file->disk)->get($file->path)),
             ])->save();
         }
 

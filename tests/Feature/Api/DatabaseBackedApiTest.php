@@ -35,11 +35,13 @@ class DatabaseBackedApiTest extends TestCase
         $login = $this->postJson('/api/v1/auth/login', [
             'employeeNo' => 'E0001',
             'email' => 'demo@example.com',
+            'nickname' => 'demo',
         ]);
 
         $login
             ->assertOk()
             ->assertJsonPath('data.user.employeeNo', 'E0001')
+            ->assertJsonPath('data.user.email', 'demo@example.com')
             ->assertJsonPath('data.user.name', 'Demo User');
 
         $token = $login->json('data.token');
@@ -55,28 +57,113 @@ class DatabaseBackedApiTest extends TestCase
             'fileId' => $fileId,
         ])->assertOk()->assertJsonPath('data.id', $fileId);
 
-        $this->withHeaders($headers)->postJson('/api/v1/registration/submit', [
+        $secondPolicy = $this->withHeaders($headers)->postJson('/api/v1/uploads/policy', [
+            'usageType' => UploadUsageType::RegistrationMaterial->value,
+        ]);
+        $secondPolicy->assertOk()->assertJsonPath('data.usageType', UploadUsageType::RegistrationMaterial->value);
+        $secondFileId = $secondPolicy->json('data.fileId');
+        $this->withHeaders($headers)->postJson('/api/v1/uploads/complete', [
+            'fileId' => $secondFileId,
+        ])->assertOk()->assertJsonPath('data.id', $secondFileId);
+
+        $submitResponse = $this->withHeaders($headers)->postJson('/api/v1/registration/submit', [
             'employeeNo' => 'E0001',
-            'name' => 'Demo User',
-            'department' => 'Demo Department',
-            'contact' => '13800000000',
+            'name' => '',
+            'department' => '',
+            'contact' => '',
             'materialFileId' => $fileId,
-        ])
+            'materialFileIds' => [$fileId, $secondFileId],
+        ]);
+
+        $submitResponse
             ->assertOk()
+            ->assertJsonPath('data.employeeNo', 'E0001')
+            ->assertJsonPath('data.email', 'demo@example.com')
+            ->assertJsonPath('data.name', 'Demo User')
+            ->assertJsonPath('data.contact', '13800000000')
+            ->assertJsonPath('data.materialFileId', $fileId)
+            ->assertJsonPath('data.materialFileIds.0', $fileId)
+            ->assertJsonPath('data.materialFileIds.1', $secondFileId)
+            ->assertJsonPath('data.materialFiles.0.id', $fileId)
+            ->assertJsonPath('data.materialFiles.1.id', $secondFileId)
             ->assertJsonPath('data.auditStatus', RegistrationAuditStatus::Submitted->value);
+
+        $this->assertStringContainsString('/storage/uploads/registration_material/', $submitResponse->json('data.materialFiles.0.url'));
+
+        $profileResponse = $this->withHeaders($headers)->getJson('/api/v1/registration/profile');
+        $profileResponse
+            ->assertOk()
+            ->assertJsonPath('data.employeeNo', 'E0001')
+            ->assertJsonPath('data.email', 'demo@example.com')
+            ->assertJsonPath('data.materialFileIds.1', $secondFileId)
+            ->assertJsonPath('data.materialFiles.1.id', $secondFileId)
+            ->assertJsonPath('data.auditStatus', RegistrationAuditStatus::Submitted->value);
+        $this->assertStringContainsString('/storage/uploads/registration_material/', $profileResponse->json('data.materialFiles.0.url'));
+
+        RegistrationProfile::query()
+            ->where('user_id', $user->id)
+            ->update([
+                'audit_status' => RegistrationAuditStatus::Approved->value,
+                'reviewed_at' => now(),
+            ]);
+
+        $this->withHeaders($headers)->getJson('/api/v1/registration/profile')
+            ->assertOk()
+            ->assertJsonPath('data.auditStatus', RegistrationAuditStatus::Approved->value);
+
+        $this->withHeaders($headers)->getJson('/api/v1/registration/status')
+            ->assertOk()
+            ->assertJsonPath('data.auditStatus', RegistrationAuditStatus::Approved->value);
+
+        $this->assertDatabaseHas('uploaded_files', [
+            'id' => $fileId,
+            'is_committed' => true,
+        ]);
+        $this->assertDatabaseHas('uploaded_files', [
+            'id' => $secondFileId,
+            'is_committed' => true,
+        ]);
 
         $this->withHeaders($headers)->getJson('/api/v1/profile/summary')
             ->assertOk()
             ->assertJsonPath('data.userId', (string) $user->id)
-            ->assertJsonPath('data.registrationStatus', RegistrationAuditStatus::Submitted->value);
+            ->assertJsonPath('data.registrationStatus', RegistrationAuditStatus::Approved->value);
+    }
+
+    public function test_registration_submit_validation_messages_are_chinese(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Demo User',
+            'email' => 'demo@example.com',
+            'employee_no' => 'E0001',
+            'nickname' => 'demo',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $token = $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => $user->employee_no,
+            'email' => $user->email,
+            'nickname' => $user->nickname,
+        ])->json('data.token');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/api/v1/registration/submit', [
+                'materialFileIds' => [''],
+            ])
+            ->assertStatus(422)
+            ->assertJsonFragment(['message' => '材料图片至少需要上传 1 张']);
     }
 
     public function test_published_works_can_be_listed_and_voted(): void
     {
+        config(['app.url' => 'https://2026hpeapi.hzblzh.com']);
+
         $author = User::query()->create([
             'name' => 'Author',
             'email' => 'author@example.com',
             'employee_no' => 'E0001',
+            'nickname' => 'author',
             'password' => 'unused',
             'status' => 'active',
         ]);
@@ -84,6 +171,7 @@ class DatabaseBackedApiTest extends TestCase
             'name' => 'Voter',
             'email' => 'voter@example.com',
             'employee_no' => 'E0002',
+            'nickname' => 'voter',
             'password' => 'unused',
             'status' => 'active',
         ]);
@@ -101,7 +189,7 @@ class DatabaseBackedApiTest extends TestCase
             'user_id' => $author->id,
             'disk' => 'local',
             'path' => 'uploads/work.mp4',
-            'url' => 'https://example.com/work.mp4',
+            'url' => 'http://localhost/storage/uploads/work.mp4',
             'mime_type' => 'video/mp4',
             'size' => 1024,
             'checksum' => 'checksum',
@@ -123,12 +211,14 @@ class DatabaseBackedApiTest extends TestCase
 
         $this->getJson('/api/v1/works')
             ->assertOk()
-            ->assertJsonPath('data.0.id', (string) $work->id)
-            ->assertJsonPath('data.0.voteCount', 0);
+            ->assertJsonPath('data.items.0.id', (string) $work->id)
+            ->assertJsonPath('data.items.0.voteCount', 0)
+            ->assertJsonPath('data.items.0.contentUrl', 'https://2026hpeapi.hzblzh.com/storage/uploads/work.mp4');
 
         $token = $this->postJson('/api/v1/auth/login', [
             'employeeNo' => 'E0002',
             'email' => 'voter@example.com',
+            'nickname' => 'voter',
         ])->json('data.token');
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token])
@@ -142,5 +232,70 @@ class DatabaseBackedApiTest extends TestCase
             'work_id' => $work->id,
             'user_id' => $voter->id,
         ]);
+    }
+
+    public function test_vote_rejection_messages_are_specific(): void
+    {
+        $author = User::query()->create([
+            'name' => 'Author',
+            'email' => 'author@example.com',
+            'employee_no' => 'E0001',
+            'nickname' => 'author',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+        $voter = User::query()->create([
+            'name' => 'Voter',
+            'email' => 'voter@example.com',
+            'employee_no' => 'E0002',
+            'nickname' => 'voter',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $content = UploadedFile::query()->create([
+            'user_id' => $author->id,
+            'disk' => 'local',
+            'path' => 'uploads/work.png',
+            'url' => 'https://example.com/work.png',
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'checksum' => 'checksum-vote-message',
+            'usage_type' => UploadUsageType::WorkContent->value,
+            'is_committed' => true,
+        ]);
+
+        $work = Work::query()->create([
+            'user_id' => $author->id,
+            'type' => WorkType::Traditional->value,
+            'group' => WorkGroup::Employee->value,
+            'title' => 'Demo Work',
+            'description' => 'Demo Description',
+            'content_file_id' => $content->id,
+            'audit_status' => WorkAuditStatus::Submitted->value,
+            'publish_status' => WorkPublishStatus::Hidden->value,
+            'vote_count' => 0,
+        ]);
+
+        $authorToken = $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => $author->employee_no,
+            'email' => $author->email,
+            'nickname' => $author->nickname,
+        ])->json('data.token');
+        $voterToken = $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => $voter->employee_no,
+            'email' => $voter->email,
+            'nickname' => $voter->nickname,
+        ])->json('data.token');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$authorToken])
+            ->postJson('/api/v1/votes', ['workId' => (string) $work->id])
+            ->assertStatus(422)
+            ->assertJsonPath('message', '不能给自己的作品投票');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$voterToken])
+            ->postJson('/api/v1/votes', ['workId' => (string) $work->id])
+            ->assertStatus(422)
+            ->assertJsonPath('message', '作品未发布，暂不可投票');
     }
 }

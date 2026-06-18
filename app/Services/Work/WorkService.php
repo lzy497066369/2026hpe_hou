@@ -2,13 +2,13 @@
 
 namespace App\Services\Work;
 
-use App\Enums\RegistrationAuditStatus;
 use App\Enums\UploadUsageType;
 use App\Enums\WorkAuditStatus;
 use App\Enums\WorkPublishStatus;
 use App\Models\UploadedFile;
 use App\Models\User;
 use App\Models\Work;
+use Illuminate\Support\Facades\DB;
 
 class WorkService
 {
@@ -72,6 +72,7 @@ class WorkService
     {
         $work = Work::query()
             ->with(['user', 'coverFile', 'contentFile'])
+            ->where('publish_status', WorkPublishStatus::Published->value)
             ->findOrFail($workId);
 
         return $this->formatWork($work);
@@ -83,48 +84,54 @@ class WorkService
      */
     public function submit(User $user, array $payload): array
     {
-        $registration = $user->registrationProfile;
-        $canSubmitMultiple = $registration?->audit_status === RegistrationAuditStatus::Approved->value;
+        $work = DB::transaction(function () use ($user, $payload): Work {
+            $lockedUser = User::query()
+                ->whereKey($user->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        abort_if(!$canSubmitMultiple && $user->works()->exists(), 422, '默认每个账号只能上传一幅作品');
+            abort_if($this->usedWorkQuota($lockedUser) >= $this->availableWorkQuota($lockedUser), 422, '当前可上传作品名额已用完，请申请更多名额');
 
-        $content = UploadedFile::query()
-            ->where('id', $payload['contentFileId'])
-            ->where('user_id', $user->id)
-            ->where('usage_type', UploadUsageType::WorkContent->value)
-            ->first();
-
-        abort_if($content === null, 422, '作品内容文件不存在或用途不正确');
-
-        $coverFileId = $payload['coverFileId'] ?? null;
-        if ($coverFileId !== null) {
-            $cover = UploadedFile::query()
-                ->where('id', $coverFileId)
-                ->where('user_id', $user->id)
-                ->where('usage_type', UploadUsageType::WorkCover->value)
+            $content = UploadedFile::query()
+                ->where('id', $payload['contentFileId'])
+                ->where('user_id', $lockedUser->id)
+                ->where('usage_type', UploadUsageType::WorkContent->value)
                 ->first();
-            abort_if($cover === null, 422, '作品封面文件不存在或用途不正确');
-        }
 
-        $work = Work::query()->create([
-            'user_id' => $user->id,
-            'type' => $payload['type'],
-            'group' => $payload['group'],
-            'title' => $payload['title'],
-            'description' => $payload['description'] ?? null,
-            'cover_file_id' => $coverFileId,
-            'content_file_id' => $payload['contentFileId'],
-            'tool_name' => $payload['toolName'] ?? null,
-            'prompt_text' => $payload['promptText'] ?? null,
-            'audit_status' => WorkAuditStatus::Submitted->value,
-            'publish_status' => WorkPublishStatus::Hidden->value,
-            'submitted_at' => now(),
-        ]);
+            abort_if($content === null, 422, '作品内容文件不存在或用途不正确');
 
-        UploadedFile::query()
-            ->whereIn('id', array_filter([$coverFileId, $payload['contentFileId']]))
-            ->where('user_id', $user->id)
-            ->update(['is_committed' => true]);
+            $coverFileId = $payload['coverFileId'] ?? null;
+            if ($coverFileId !== null) {
+                $cover = UploadedFile::query()
+                    ->where('id', $coverFileId)
+                    ->where('user_id', $lockedUser->id)
+                    ->where('usage_type', UploadUsageType::WorkCover->value)
+                    ->first();
+                abort_if($cover === null, 422, '作品封面文件不存在或用途不正确');
+            }
+
+            $work = Work::query()->create([
+                'user_id' => $lockedUser->id,
+                'type' => $payload['type'],
+                'group' => $payload['group'],
+                'title' => $payload['title'],
+                'description' => $payload['description'] ?? null,
+                'cover_file_id' => $coverFileId,
+                'content_file_id' => $payload['contentFileId'],
+                'tool_name' => $payload['toolName'] ?? null,
+                'prompt_text' => $payload['promptText'] ?? null,
+                'audit_status' => WorkAuditStatus::Submitted->value,
+                'publish_status' => WorkPublishStatus::Hidden->value,
+                'submitted_at' => now(),
+            ]);
+
+            UploadedFile::query()
+                ->whereIn('id', array_filter([$coverFileId, $payload['contentFileId']]))
+                ->where('user_id', $lockedUser->id)
+                ->update(['is_committed' => true]);
+
+            return $work;
+        });
 
         return $this->formatWork($work->load(['user', 'coverFile', 'contentFile']));
     }
@@ -187,8 +194,9 @@ class WorkService
             'title' => $work->title,
             'description' => $work->description ?? '',
             'employeeNo' => $work->user?->employee_no,
-            'coverUrl' => $work->coverFile?->url,
-            'contentUrl' => $work->contentFile?->url,
+            'authorName' => $work->user?->nickname ?: ($work->user?->name ?: $work->user?->employee_no),
+            'coverUrl' => $this->fullUrl($work->coverFile?->url),
+            'contentUrl' => $this->fullUrl($work->contentFile?->url),
             'contentFileId' => $work->content_file_id === null ? null : (string) $work->content_file_id,
             'toolName' => $work->tool_name,
             'promptText' => $work->prompt_text,
@@ -196,5 +204,33 @@ class WorkService
             'publishStatus' => $work->publish_status,
             'voteCount' => $work->vote_count,
         ];
+    }
+
+    private function fullUrl(?string $url): ?string
+    {
+        if ($url === null || $url === '') {
+            return null;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH);
+        if (is_string($path) && str_starts_with($path, '/storage/')) {
+            return rtrim((string) config('app.url'), '/').$path;
+        }
+
+        if (preg_match('/^https?:\/\//i', $url) === 1) {
+            return $url;
+        }
+
+        return rtrim((string) config('app.url'), '/').'/'.ltrim($url, '/');
+    }
+
+    private function availableWorkQuota(User $user): int
+    {
+        return $user->availableWorkQuota();
+    }
+
+    private function usedWorkQuota(User $user): int
+    {
+        return $user->usedWorkQuota();
     }
 }

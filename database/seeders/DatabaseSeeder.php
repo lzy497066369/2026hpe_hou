@@ -6,6 +6,7 @@ use App\Enums\WorkAuditStatus;
 use App\Enums\WorkGroup;
 use App\Enums\WorkPublishStatus;
 use App\Enums\WorkType;
+use App\Models\ActivitySetting;
 use App\Models\Prize;
 use App\Models\User;
 use App\Models\Work;
@@ -85,6 +86,46 @@ class DatabaseSeeder extends Seeder
                 'stock' => $prize['stock'],
                 'status' => 'active',
             ]);
+        }
+
+        foreach ([
+            [
+                'key' => 'activity_ends_at',
+                'label' => '活动结束时间',
+                'type' => 'datetime',
+                'value' => '2026-07-09 23:59:59',
+                'description' => '活动结束后不可上传作品和玩游戏，资料填写与抽奖仍可继续。',
+            ],
+            [
+                'key' => 'lottery_opens_at',
+                'label' => '抽奖开放时间',
+                'type' => 'datetime',
+                'value' => '2026-07-09 00:00:00',
+                'description' => '抽奖中心开放时间。',
+            ],
+            [
+                'key' => 'upload_enabled',
+                'label' => '上传作品开关',
+                'type' => 'boolean',
+                'value' => 'true',
+                'description' => '控制前台上传作品入口。',
+            ],
+            [
+                'key' => 'game_enabled',
+                'label' => '游戏开关',
+                'type' => 'boolean',
+                'value' => 'true',
+                'description' => '控制前台游戏入口。',
+            ],
+            [
+                'key' => 'vote_enabled',
+                'label' => '投票开关',
+                'type' => 'boolean',
+                'value' => 'true',
+                'description' => '控制前台投票能力。',
+            ],
+        ] as $setting) {
+            ActivitySetting::query()->updateOrCreate(['key' => $setting['key']], $setting);
         }
 
         $demoUser->registrationProfile()->updateOrCreate([], [

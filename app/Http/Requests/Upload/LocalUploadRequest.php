@@ -23,4 +23,20 @@ class LocalUploadRequest extends FormRequest
             'file' => ['required', 'file', 'max:20480'],
         ];
     }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            if ($this->input('usageType') !== UploadUsageType::RegistrationMaterial->value) {
+                return;
+            }
+
+            $file = $this->file('file');
+            if (!$file || str_starts_with((string) $file->getMimeType(), 'image/')) {
+                return;
+            }
+
+            $validator->errors()->add('file', '报名材料仅支持图片文件。');
+        });
+    }
 }

@@ -19,6 +19,7 @@ class WorkResource extends JsonResource
             'title' => $this->resource['title'],
             'description' => $this->resource['description'],
             'employeeNo' => $this->resource['employeeNo'] ?? null,
+            'authorName' => $this->resource['authorName'] ?? null,
             'coverUrl' => $this->resource['coverUrl'] ?? null,
             'contentUrl' => $this->resource['contentUrl'] ?? null,
             'contentFileId' => $this->resource['contentFileId'] ?? null,

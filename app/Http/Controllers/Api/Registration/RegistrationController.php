@@ -20,6 +20,11 @@ class RegistrationController extends Controller
         );
     }
 
+    public function status(Request $request, RegistrationService $service, CurrentUserResolver $resolver): JsonResponse
+    {
+        return ApiResponse::success($service->status($resolver->require($request)));
+    }
+
     public function submit(SubmitRegistrationRequest $request, RegistrationService $service, CurrentUserResolver $resolver): JsonResponse
     {
         return ApiResponse::success(

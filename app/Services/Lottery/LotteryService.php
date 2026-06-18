@@ -58,14 +58,12 @@ class LotteryService
                     ->first();
 
                 abort_if(
-                    $qualification !== null && $qualification->used_count >= $qualification->chance_count,
+                    $qualification === null || $qualification->used_count >= $qualification->chance_count,
                     422,
                     '抽奖次数不足'
                 );
 
-                if ($qualification !== null) {
-                    $qualification->increment('used_count');
-                }
+                $qualification->increment('used_count');
 
                 $prize = Prize::query()
                     ->where('status', 'active')

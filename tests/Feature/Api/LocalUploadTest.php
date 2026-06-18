@@ -21,6 +21,7 @@ class LocalUploadTest extends TestCase
             'name' => 'Demo User',
             'email' => 'demo@example.com',
             'employee_no' => 'E0001',
+            'nickname' => 'demo',
             'password' => 'unused',
             'status' => 'active',
         ]);
@@ -28,6 +29,7 @@ class LocalUploadTest extends TestCase
         $token = $this->postJson('/api/v1/auth/login', [
             'employeeNo' => $user->employee_no,
             'email' => $user->email,
+            'nickname' => $user->nickname,
         ])->json('data.token');
 
         $response = $this->withHeaders(['Authorization' => 'Bearer '.$token])

@@ -24,8 +24,8 @@ class VotingService
             return DB::transaction(function () use ($user, $workId): array {
             $work = Work::query()->lockForUpdate()->findOrFail($workId);
 
-            abort_if($work->publish_status !== WorkPublishStatus::Published->value, 422, '作品不可投票');
             abort_if($work->user_id === $user->id, 422, '不能给自己的作品投票');
+            abort_if($work->publish_status !== WorkPublishStatus::Published->value, 422, '作品未发布，暂不可投票');
 
             $today = now()->toDateString();
             $dailyVotes = WorkVote::query()
