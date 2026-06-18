@@ -11,6 +11,7 @@ use App\Models\Prize;
 use App\Models\UploadedFile;
 use App\Models\User;
 use App\Models\Work;
+use App\Support\AwardLevels;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -23,10 +24,12 @@ class ProductionGuardrailsTest extends TestCase
         $user = $this->createUser('E1001', 'lottery@example.com');
         $prize = Prize::query()->create([
             'name' => 'Demo Prize',
-            'level' => 'demo',
+            'level' => AwardLevels::FRAGRANCE_VOTE,
             'stock' => 1,
             'status' => 'active',
         ]);
+
+        $this->travelTo(now('Asia/Shanghai')->setDate(2026, 7, 10)->setTime(9, 0));
 
         $this->withHeaders($this->authHeaders($user))
             ->postJson('/api/v1/lottery/draw')
@@ -47,11 +50,13 @@ class ProductionGuardrailsTest extends TestCase
         $user = $this->createUser('E1002', 'unqualified@example.com');
         LotteryQualification::query()->create([
             'user_id' => $user->id,
-            'source_type' => 'manual',
+            'source_type' => AwardLevels::FRAGRANCE_VOTE,
             'qualified' => false,
             'chance_count' => 1,
             'used_count' => 0,
         ]);
+
+        $this->travelTo(now('Asia/Shanghai')->setDate(2026, 7, 10)->setTime(9, 0));
 
         $this->withHeaders($this->authHeaders($user))
             ->postJson('/api/v1/lottery/draw')

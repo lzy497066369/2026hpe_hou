@@ -15,6 +15,7 @@ class LotteryRecordResource extends JsonResource
         return [
             'id' => $this->resource['id'],
             'resultStatus' => $this->resource['resultStatus'],
+            'sourceType' => $this->resource['sourceType'] ?? null,
             'prize' => $this->resource['prize'] ?? null,
             'drawnAt' => $this->resource['drawnAt'] ?? null,
         ];

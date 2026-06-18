@@ -9,6 +9,8 @@ use App\Models\Prize;
 use App\Models\PrizeClaim;
 use App\Models\User;
 use App\Services\Support\AtomicLock;
+use App\Support\AwardLevels;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 class LotteryService
@@ -20,15 +22,23 @@ class LotteryService
     /**
      * @return array<string, mixed>
      */
-    public function qualification(User $user): array
+    public function qualification(User $user, ?string $sourceType = null): array
     {
-        $qualification = LotteryQualification::query()
+        $sourceType = $this->normalizeSourceType($sourceType);
+
+        $query = LotteryQualification::query()
             ->where('user_id', $user->id)
-            ->orderByDesc('chance_count')
-            ->first();
+            ->orderByDesc('chance_count');
+
+        if ($sourceType !== null) {
+            $query->where('source_type', $sourceType);
+        }
+
+        $qualification = $query->first();
 
         if ($qualification === null) {
             return [
+                'sourceType' => $sourceType,
                 'qualified' => false,
                 'chanceCount' => 0,
                 'usedCount' => 0,
@@ -37,6 +47,7 @@ class LotteryService
         }
 
         return [
+            'sourceType' => $qualification->source_type,
             'qualified' => $qualification->qualified,
             'chanceCount' => $qualification->chance_count,
             'usedCount' => $qualification->used_count,
@@ -47,12 +58,25 @@ class LotteryService
     /**
      * @return array<string, mixed>
      */
-    public function draw(User $user): array
+    public function draw(User $user, ?string $sourceType = null): array
     {
-        $record = $this->lock->run("lottery:user:{$user->id}", function () use ($user): LotteryRecord {
-            return DB::transaction(function () use ($user): LotteryRecord {
+        $sourceType = $this->normalizeSourceType($sourceType) ?? AwardLevels::FRAGRANCE_VOTE;
+        $this->ensureOfficialPoolIsOpen($sourceType);
+
+        $record = $this->lock->run("lottery:user:{$user->id}:{$sourceType}", function () use ($user, $sourceType): LotteryRecord {
+            return DB::transaction(function () use ($user, $sourceType): LotteryRecord {
+                $alreadyWon = LotteryRecord::query()
+                    ->where('user_id', $user->id)
+                    ->where('source_type', $sourceType)
+                    ->where('result_status', LotteryResultStatus::Won->value)
+                    ->lockForUpdate()
+                    ->exists();
+
+                abort_if($alreadyWon, 422, '该奖项已中奖');
+
                 $qualification = LotteryQualification::query()
                     ->where('user_id', $user->id)
+                    ->where('source_type', $sourceType)
                     ->where('qualified', true)
                     ->lockForUpdate()
                     ->first();
@@ -66,6 +90,7 @@ class LotteryService
                 $qualification->increment('used_count');
 
                 $prize = Prize::query()
+                    ->where('level', $sourceType)
                     ->where('status', 'active')
                     ->where('stock', '>', 0)
                     ->lockForUpdate()
@@ -78,6 +103,7 @@ class LotteryService
                 return LotteryRecord::query()->create([
                     'user_id' => $user->id,
                     'prize_id' => $prize?->id,
+                    'source_type' => $sourceType,
                     'result_status' => $prize === null
                         ? LotteryResultStatus::Lost->value
                         : LotteryResultStatus::Won->value,
@@ -165,6 +191,7 @@ class LotteryService
         return [
             'id' => (string) $record->id,
             'resultStatus' => $record->result_status,
+            'sourceType' => $record->source_type,
             'prize' => $record->prize === null ? null : [
                 'id' => (string) $record->prize->id,
                 'name' => $record->prize->name,
@@ -173,5 +200,36 @@ class LotteryService
             ],
             'drawnAt' => $record->drawn_at?->toISOString(),
         ];
+    }
+
+    private function normalizeSourceType(?string $sourceType): ?string
+    {
+        if ($sourceType === null || $sourceType === '') {
+            return null;
+        }
+
+        abort_unless(
+            in_array($sourceType, [
+                AwardLevels::FRAGRANCE_VOTE,
+                AwardLevels::DREAM_PARK,
+                'contract-test',
+                'manual',
+            ], true),
+            422,
+            '抽奖类型不正确'
+        );
+
+        return $sourceType;
+    }
+
+    private function ensureOfficialPoolIsOpen(string $sourceType): void
+    {
+        if (! in_array($sourceType, [AwardLevels::FRAGRANCE_VOTE, AwardLevels::DREAM_PARK], true)) {
+            return;
+        }
+
+        $openAt = CarbonImmutable::parse('2026-07-10 09:00:00', 'Asia/Shanghai');
+
+        abort_if(now('Asia/Shanghai')->lt($openAt), 422, '抽奖尚未开始');
     }
 }

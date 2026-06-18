@@ -11,6 +11,7 @@ use App\Models\LotteryQualification;
 use App\Models\Prize;
 use App\Models\User;
 use App\Models\Work;
+use App\Support\AwardLevels;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -63,20 +64,22 @@ class ApiContractTest extends TestCase
 
         LotteryQualification::query()->create([
             'user_id' => $user->id,
-            'source_type' => 'contract-test',
+            'source_type' => AwardLevels::FRAGRANCE_VOTE,
             'qualified' => true,
             'chance_count' => 2,
             'used_count' => 0,
         ]);
         Prize::query()->create([
             'name' => 'Demo Prize',
-            'level' => 'demo',
-            'stock' => 2,
+            'level' => AwardLevels::FRAGRANCE_VOTE,
+            'stock' => 0,
             'status' => 'active',
         ]);
 
+        $this->travelTo(now('Asia/Shanghai')->setDate(2026, 7, 10)->setTime(9, 0));
+
         $recordId = $this->withHeaders($headers)
-            ->postJson('/api/v1/lottery/draw')
+            ->postJson('/api/v1/lottery/draw', ['sourceType' => AwardLevels::FRAGRANCE_VOTE])
             ->json('data.id');
 
         $endpoints = [
@@ -86,7 +89,7 @@ class ApiContractTest extends TestCase
             ['GET', '/api/v1/works/'.$work->id],
             ['POST', '/api/v1/votes', ['workId' => (string) $work->id], $headers],
             ['GET', '/api/v1/lottery/qualification', [], $headers],
-            ['POST', '/api/v1/lottery/draw', [], $headers],
+            ['POST', '/api/v1/lottery/draw', ['sourceType' => AwardLevels::FRAGRANCE_VOTE], $headers],
             ['POST', '/api/v1/lottery/records/'.$recordId.'/claim', [
                 'claimType' => 'shipping',
                 'receiverName' => 'Demo User',

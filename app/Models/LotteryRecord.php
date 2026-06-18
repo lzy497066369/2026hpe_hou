@@ -9,6 +9,7 @@ class LotteryRecord extends Model
     protected $fillable = [
         'user_id',
         'prize_id',
+        'source_type',
         'result_status',
         'drawn_at',
     ];

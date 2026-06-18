@@ -43,8 +43,12 @@ class RegistrationService
     /**
      * @return array<string, mixed>
      */
-    public function status(User $user): array
+    public function status(User $user, mixed $applicationType = null): array
     {
+        if ($applicationType === 'extra_quota') {
+            return $this->extraQuotaStatus($user);
+        }
+
         $profile = $user->registrationProfile;
 
         if ($profile === null) {
@@ -61,6 +65,23 @@ class RegistrationService
             'auditRemark' => $profile->audit_remark,
             'submittedAt' => $profile->submitted_at?->toISOString(),
             'reviewedAt' => $profile->reviewed_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function extraQuotaStatus(User $user): array
+    {
+        $application = $user->quotaApplications()->latest('id')->first();
+
+        abort_if($application === null, 422, '暂未提交材料审核');
+
+        return [
+            'auditStatus' => $application->audit_status,
+            'auditRemark' => $application->audit_remark,
+            'submittedAt' => $application->submitted_at?->toISOString(),
+            'reviewedAt' => $application->reviewed_at?->toISOString(),
         ];
     }
 

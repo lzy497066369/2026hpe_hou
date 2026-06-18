@@ -13,6 +13,7 @@ class LotteryQualificationResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
+            'sourceType' => $this->resource['sourceType'] ?? null,
             'qualified' => $this->resource['qualified'],
             'chanceCount' => $this->resource['chanceCount'],
             'usedCount' => $this->resource['usedCount'],

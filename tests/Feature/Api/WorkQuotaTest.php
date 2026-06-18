@@ -35,6 +35,42 @@ class WorkQuotaTest extends TestCase
             ->assertJsonPath('message', '当前可上传作品名额已用完，请申请更多名额');
     }
 
+    public function test_extra_quota_status_returns_error_when_no_application_exists(): void
+    {
+        [, $headers] = $this->createLoggedInUser();
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/registration/status?applicationType=extra_quota')
+            ->assertStatus(422)
+            ->assertJsonPath('message', '暂未提交材料审核');
+    }
+
+    public function test_extra_quota_status_returns_latest_application_status(): void
+    {
+        [$user, $headers] = $this->createLoggedInUser();
+
+        $firstApplicationId = $this->submitExtraQuotaApplication($headers, $user, [
+            $this->createRegistrationMaterialFile($user, 'status-material-a-1'),
+            $this->createRegistrationMaterialFile($user, 'status-material-a-2'),
+        ])->json('data.id');
+        \App\Models\QuotaApplication::query()
+            ->whereKey($firstApplicationId)
+            ->update([
+                'audit_status' => RegistrationAuditStatus::Approved->value,
+                'reviewed_at' => now(),
+            ]);
+
+        $this->submitExtraQuotaApplication($headers, $user, [
+            $this->createRegistrationMaterialFile($user, 'status-material-b-1'),
+            $this->createRegistrationMaterialFile($user, 'status-material-b-2'),
+        ])->assertOk();
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/registration/status?applicationType=extra_quota')
+            ->assertOk()
+            ->assertJsonPath('data.auditStatus', RegistrationAuditStatus::Submitted->value);
+    }
+
     public function test_extra_quota_application_with_same_material_images_is_rejected_as_duplicate(): void
     {
         [$user, $headers] = $this->createLoggedInUser();

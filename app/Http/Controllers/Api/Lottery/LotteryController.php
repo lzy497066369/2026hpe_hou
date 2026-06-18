@@ -17,14 +17,14 @@ class LotteryController extends Controller
     public function qualification(Request $request, LotteryService $service, CurrentUserResolver $resolver): JsonResponse
     {
         return ApiResponse::success(
-            (new LotteryQualificationResource($service->qualification($resolver->require($request))))->resolve()
+            (new LotteryQualificationResource($service->qualification($resolver->require($request), $request->query('sourceType'))))->resolve()
         );
     }
 
     public function draw(Request $request, LotteryService $service, CurrentUserResolver $resolver): JsonResponse
     {
         return ApiResponse::success(
-            (new LotteryRecordResource($service->draw($resolver->require($request))))->resolve()
+            (new LotteryRecordResource($service->draw($resolver->require($request), $request->input('sourceType'))))->resolve()
         );
     }
 
