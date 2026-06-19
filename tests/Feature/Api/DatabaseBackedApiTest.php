@@ -234,6 +234,37 @@ class DatabaseBackedApiTest extends TestCase
         ]);
     }
 
+    public function test_published_works_can_be_searched_by_list_serial_number(): void
+    {
+        $author = User::query()->create([
+            'name' => 'Serial Author',
+            'email' => 'serial@example.com',
+            'employee_no' => 'E0098',
+            'nickname' => 'serial-author',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $firstWork = $this->createPublishedWork($author, 'Top Vote Work', 'highest votes', 30);
+        $secondWork = $this->createPublishedWork($author, 'Middle Vote Work', 'serial target', 20);
+        $thirdWork = $this->createPublishedWork($author, 'Low Vote Work', 'lowest votes', 10);
+
+        $this->getJson('/api/v1/works?keyword=02&page=1&pageSize=10')
+            ->assertOk()
+            ->assertJsonPath('data.pagination.total', 1)
+            ->assertJsonPath('data.items.0.id', (string) $secondWork->id);
+
+        $this->getJson('/api/v1/works?keyword='.urlencode('#03').'&page=1&pageSize=10')
+            ->assertOk()
+            ->assertJsonPath('data.pagination.total', 1)
+            ->assertJsonPath('data.items.0.id', (string) $thirdWork->id);
+
+        $this->getJson('/api/v1/works?keyword='.urlencode('Top Vote').'&page=1&pageSize=10')
+            ->assertOk()
+            ->assertJsonPath('data.pagination.total', 1)
+            ->assertJsonPath('data.items.0.id', (string) $firstWork->id);
+    }
+
     public function test_vote_rejection_messages_are_specific(): void
     {
         $author = User::query()->create([
@@ -297,5 +328,19 @@ class DatabaseBackedApiTest extends TestCase
             ->postJson('/api/v1/votes', ['workId' => (string) $work->id])
             ->assertStatus(422)
             ->assertJsonPath('message', '作品未发布，暂不可投票');
+    }
+
+    private function createPublishedWork(User $user, string $title, string $description, int $voteCount): Work
+    {
+        return Work::query()->create([
+            'user_id' => $user->id,
+            'type' => WorkType::Traditional->value,
+            'group' => WorkGroup::Employee->value,
+            'title' => $title,
+            'description' => $description,
+            'audit_status' => WorkAuditStatus::Published->value,
+            'publish_status' => WorkPublishStatus::Published->value,
+            'vote_count' => $voteCount,
+        ]);
     }
 }

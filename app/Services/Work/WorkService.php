@@ -8,6 +8,8 @@ use App\Enums\WorkPublishStatus;
 use App\Models\UploadedFile;
 use App\Models\User;
 use App\Models\Work;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class WorkService
@@ -25,8 +27,7 @@ class WorkService
     {
         $query = Work::query()
             ->with(['user', 'coverFile', 'contentFile'])
-            ->where('publish_status', WorkPublishStatus::Published->value)
-            ->orderByDesc('vote_count');
+            ->where('publish_status', WorkPublishStatus::Published->value);
 
         if ($group !== null && $group !== '') {
             $query->where('group', $group);
@@ -36,7 +37,13 @@ class WorkService
             $query->where('type', $type);
         }
 
-        if ($keyword !== null && $keyword !== '') {
+        $keyword = trim((string) $keyword);
+
+        if ($keyword !== '' && $this->hasSerialSearchIntent($keyword)) {
+            return $this->listByKeywordWithSerial($query, $page, $pageSize, $keyword);
+        }
+
+        if ($keyword !== '') {
             $query->where(function ($builder) use ($keyword): void {
                 $builder
                     ->where('title', 'like', '%'.$keyword.'%')
@@ -50,11 +57,16 @@ class WorkService
             });
         }
 
+        $this->applyListOrder($query);
+
         $paginator = $query->paginate($pageSize, ['*'], 'page', $page);
+
+        $firstSerial = (int) $paginator->firstItem();
 
         return [
             'items' => $paginator->getCollection()
-                ->map(fn (Work $work): array => $this->formatWork($work))
+                ->values()
+                ->map(fn (Work $work, int $index): array => $this->formatWork($work, $firstSerial + $index))
                 ->all(),
             'pagination' => [
                 'page' => $paginator->currentPage(),
@@ -196,9 +208,9 @@ class WorkService
     /**
      * @return array<string, mixed>
      */
-    private function formatWork(Work $work): array
+    private function formatWork(Work $work, ?int $serial = null): array
     {
-        return [
+        $data = [
             'id' => (string) $work->id,
             'type' => $work->type,
             'group' => $work->group,
@@ -215,6 +227,12 @@ class WorkService
             'publishStatus' => $work->publish_status,
             'voteCount' => $work->vote_count,
         ];
+
+        if ($serial !== null) {
+            $data['serial'] = $serial;
+        }
+
+        return $data;
     }
 
     private function fullUrl(?string $url): ?string
@@ -233,6 +251,94 @@ class WorkService
         }
 
         return rtrim((string) config('app.url'), '/').'/'.ltrim($url, '/');
+    }
+
+    /**
+     * @param Builder<Work> $query
+     * @return array<string, mixed>
+     */
+    private function listByKeywordWithSerial(Builder $query, int $page, int $pageSize, string $keyword): array
+    {
+        $works = $this->applyListOrder($query)
+            ->get()
+            ->values();
+
+        $matchedWorks = $works
+            ->map(fn (Work $work, int $index): array => [
+                'work' => $work,
+                'serial' => $index + 1,
+            ])
+            ->filter(fn (array $item): bool => $this->matchesKeywordWithSerial($item['work'], $item['serial'], $keyword))
+            ->values();
+
+        return $this->formatPaginatedCollection($matchedWorks, $page, $pageSize);
+    }
+
+    /**
+     * @param Builder<Work> $query
+     * @return Builder<Work>
+     */
+    private function applyListOrder(Builder $query): Builder
+    {
+        return $query
+            ->orderByDesc('vote_count')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+    }
+
+    private function hasSerialSearchIntent(string $keyword): bool
+    {
+        return preg_match('/#?\d/u', $keyword) === 1;
+    }
+
+    private function matchesKeywordWithSerial(Work $work, int $serial, string $keyword): bool
+    {
+        $normalizedKeyword = $this->normalizeSearchText($keyword);
+        $serialLabel = str_pad((string) $serial, 2, '0', STR_PAD_LEFT);
+        $searchableText = $this->normalizeSearchText(implode(' ', [
+            $work->title,
+            $work->description,
+            $work->user?->employee_no,
+            $work->user?->nickname,
+            $work->user?->name,
+            (string) $serial,
+            $serialLabel,
+            '#'.$serial,
+            '#'.$serialLabel,
+        ]));
+
+        return str_contains($searchableText, $normalizedKeyword);
+    }
+
+    private function normalizeSearchText(string $text): string
+    {
+        return mb_strtolower(trim($text));
+    }
+
+    /**
+     * @param Collection<int, array{work: Work, serial: int}> $works
+     * @return array<string, mixed>
+     */
+    private function formatPaginatedCollection(Collection $works, int $page, int $pageSize): array
+    {
+        $safePage = max(1, $page);
+        $safePageSize = max(1, $pageSize);
+        $total = $works->count();
+        $offset = ($safePage - 1) * $safePageSize;
+
+        return [
+            'items' => $works
+                ->slice($offset, $safePageSize)
+                ->values()
+                ->map(fn (array $item): array => $this->formatWork($item['work'], $item['serial']))
+                ->all(),
+            'pagination' => [
+                'page' => $safePage,
+                'pageSize' => $safePageSize,
+                'total' => $total,
+                'hasMore' => $offset + $safePageSize < $total,
+            ],
+        ];
     }
 
     private function availableWorkQuota(User $user): int
