@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\GameRecords\Schemas;
 
+use App\Support\AdminDisplay;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
 
@@ -11,8 +12,9 @@ class GameRecordInfolist
     {
         return $schema
             ->components([
-                TextEntry::make('user.name')
-                    ->label('员工姓名'),
+                TextEntry::make('user.username')
+                    ->label('Preferred Name')
+                    ->getStateUsing(fn ($record): string => AdminDisplay::preferredName($record->user)),
                 TextEntry::make('user.employee_no')
                     ->label('员工号'),
                 TextEntry::make('user.nickname')

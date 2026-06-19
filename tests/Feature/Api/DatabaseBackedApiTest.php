@@ -213,7 +213,8 @@ class DatabaseBackedApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.items.0.id', (string) $work->id)
             ->assertJsonPath('data.items.0.voteCount', 0)
-            ->assertJsonPath('data.items.0.contentUrl', 'https://2026hpeapi.hzblzh.com/storage/uploads/work.mp4');
+            ->assertJsonPath('data.items.0.contentUrl', 'https://2026hpeapi.hzblzh.com/storage/uploads/work.mp4')
+            ->assertJsonPath('data.items.0.contentMimeType', 'video/mp4');
 
         $token = $this->postJson('/api/v1/auth/login', [
             'employeeNo' => 'E0002',
@@ -234,7 +235,91 @@ class DatabaseBackedApiTest extends TestCase
         ]);
     }
 
-    public function test_published_works_can_be_searched_by_list_serial_number(): void
+    public function test_traditional_work_accepts_audio_content_and_returns_mime_type(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Traditional User',
+            'email' => 'traditional@example.com',
+            'employee_no' => 'E0101',
+            'nickname' => 'traditional',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $content = UploadedFile::query()->create([
+            'user_id' => $user->id,
+            'disk' => 'local',
+            'path' => 'uploads/work.mp3',
+            'url' => 'https://example.com/work.mp3',
+            'mime_type' => 'audio/mpeg',
+            'size' => 1024,
+            'checksum' => 'checksum-audio-traditional',
+            'usage_type' => UploadUsageType::WorkContent->value,
+            'is_committed' => false,
+        ]);
+
+        $token = $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => $user->employee_no,
+            'email' => $user->email,
+            'nickname' => $user->nickname,
+        ])->json('data.token');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/api/v1/works/submit', [
+                'type' => WorkType::Traditional->value,
+                'group' => WorkGroup::Employee->value,
+                'title' => 'Traditional Audio',
+                'description' => 'Audio work',
+                'contentFileId' => (string) $content->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.contentMimeType', 'audio/mpeg');
+    }
+
+    public function test_ai_work_accepts_audio_content_and_returns_mime_type(): void
+    {
+        $user = User::query()->create([
+            'name' => 'AI User',
+            'email' => 'ai@example.com',
+            'employee_no' => 'E0102',
+            'nickname' => 'ai',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $content = UploadedFile::query()->create([
+            'user_id' => $user->id,
+            'disk' => 'local',
+            'path' => 'uploads/work.mp3',
+            'url' => 'https://example.com/work.mp3',
+            'mime_type' => 'audio/mpeg',
+            'size' => 1024,
+            'checksum' => 'checksum-audio-ai',
+            'usage_type' => UploadUsageType::WorkContent->value,
+            'is_committed' => false,
+        ]);
+
+        $token = $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => $user->employee_no,
+            'email' => $user->email,
+            'nickname' => $user->nickname,
+        ])->json('data.token');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/api/v1/works/submit', [
+                'type' => WorkType::Ai->value,
+                'group' => WorkGroup::Employee->value,
+                'title' => 'AI Audio',
+                'description' => 'Audio work',
+                'contentFileId' => (string) $content->id,
+                'toolName' => 'Tool',
+                'promptText' => 'Prompt',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.contentMimeType', 'audio/mpeg');
+    }
+
+    public function test_published_works_can_only_be_searched_by_list_serial_number(): void
     {
         $author = User::query()->create([
             'name' => 'Serial Author',
@@ -249,20 +334,22 @@ class DatabaseBackedApiTest extends TestCase
         $secondWork = $this->createPublishedWork($author, 'Middle Vote Work', 'serial target', 20);
         $thirdWork = $this->createPublishedWork($author, 'Low Vote Work', 'lowest votes', 10);
 
-        $this->getJson('/api/v1/works?keyword=02&page=1&pageSize=10')
+        $this->getJson('/api/v1/works?keyword='.str_pad((string) $secondWork->id, 3, '0', STR_PAD_LEFT).'&page=1&pageSize=10')
             ->assertOk()
             ->assertJsonPath('data.pagination.total', 1)
+            ->assertJsonPath('data.items.0.serial', $secondWork->id)
             ->assertJsonPath('data.items.0.id', (string) $secondWork->id);
 
-        $this->getJson('/api/v1/works?keyword='.urlencode('#03').'&page=1&pageSize=10')
+        $this->getJson('/api/v1/works?keyword='.urlencode('#'.str_pad((string) $thirdWork->id, 3, '0', STR_PAD_LEFT)).'&page=1&pageSize=10')
             ->assertOk()
             ->assertJsonPath('data.pagination.total', 1)
+            ->assertJsonPath('data.items.0.serial', $thirdWork->id)
             ->assertJsonPath('data.items.0.id', (string) $thirdWork->id);
 
         $this->getJson('/api/v1/works?keyword='.urlencode('Top Vote').'&page=1&pageSize=10')
             ->assertOk()
-            ->assertJsonPath('data.pagination.total', 1)
-            ->assertJsonPath('data.items.0.id', (string) $firstWork->id);
+            ->assertJsonPath('data.pagination.total', 0)
+            ->assertJsonCount(0, 'data.items');
     }
 
     public function test_vote_rejection_messages_are_specific(): void

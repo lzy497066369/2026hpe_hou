@@ -14,6 +14,23 @@ use Illuminate\Support\Facades\DB;
 
 class WorkService
 {
+    private const TRADITIONAL_CONTENT_MIME_TYPES = [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'audio/mpeg',
+        'audio/mp3',
+    ];
+
+    private const AI_CONTENT_MIME_TYPES = [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'video/mp4',
+        'audio/mpeg',
+        'audio/mp3',
+    ];
+
     /**
      * @return array<string, mixed>
      */
@@ -39,34 +56,18 @@ class WorkService
 
         $keyword = trim((string) $keyword);
 
-        if ($keyword !== '' && $this->hasSerialSearchIntent($keyword)) {
-            return $this->listByKeywordWithSerial($query, $page, $pageSize, $keyword);
-        }
-
         if ($keyword !== '') {
-            $query->where(function ($builder) use ($keyword): void {
-                $builder
-                    ->where('title', 'like', '%'.$keyword.'%')
-                    ->orWhere('description', 'like', '%'.$keyword.'%')
-                    ->orWhereHas('user', function ($userQuery) use ($keyword): void {
-                        $userQuery
-                            ->where('employee_no', 'like', '%'.$keyword.'%')
-                            ->orWhere('nickname', 'like', '%'.$keyword.'%')
-                            ->orWhere('name', 'like', '%'.$keyword.'%');
-                    });
-            });
+            return $this->listByKeywordWithSerial($query, $page, $pageSize, $keyword);
         }
 
         $this->applyListOrder($query);
 
         $paginator = $query->paginate($pageSize, ['*'], 'page', $page);
 
-        $firstSerial = (int) $paginator->firstItem();
-
         return [
             'items' => $paginator->getCollection()
                 ->values()
-                ->map(fn (Work $work, int $index): array => $this->formatWork($work, $firstSerial + $index))
+                ->map(fn (Work $work): array => $this->formatWork($work))
                 ->all(),
             'pagination' => [
                 'page' => $paginator->currentPage(),
@@ -122,6 +123,8 @@ class WorkService
                 ->first();
 
             abort_if($content === null, 422, '作品内容文件不存在或用途不正确');
+
+            $this->ensureContentMimeTypeIsAllowed($payload['type'], (string) $content->mime_type);
 
             $coverFileId = $payload['coverFileId'] ?? null;
             if ($coverFileId !== null) {
@@ -208,10 +211,11 @@ class WorkService
     /**
      * @return array<string, mixed>
      */
-    private function formatWork(Work $work, ?int $serial = null): array
+    private function formatWork(Work $work): array
     {
-        $data = [
+        return [
             'id' => (string) $work->id,
+            'serial' => (int) $work->id,
             'type' => $work->type,
             'group' => $work->group,
             'title' => $work->title,
@@ -219,7 +223,9 @@ class WorkService
             'employeeNo' => $work->user?->employee_no,
             'authorName' => $work->user?->nickname ?: ($work->user?->name ?: $work->user?->employee_no),
             'coverUrl' => $this->fullUrl($work->coverFile?->url),
+            'coverMimeType' => $work->coverFile?->mime_type,
             'contentUrl' => $this->fullUrl($work->contentFile?->url),
+            'contentMimeType' => $work->contentFile?->mime_type,
             'contentFileId' => $work->content_file_id === null ? null : (string) $work->content_file_id,
             'toolName' => $work->tool_name,
             'promptText' => $work->prompt_text,
@@ -227,12 +233,6 @@ class WorkService
             'publishStatus' => $work->publish_status,
             'voteCount' => $work->vote_count,
         ];
-
-        if ($serial !== null) {
-            $data['serial'] = $serial;
-        }
-
-        return $data;
     }
 
     private function fullUrl(?string $url): ?string
@@ -266,9 +266,9 @@ class WorkService
         $matchedWorks = $works
             ->map(fn (Work $work, int $index): array => [
                 'work' => $work,
-                'serial' => $index + 1,
+                'serial' => (int) $work->id,
             ])
-            ->filter(fn (array $item): bool => $this->matchesKeywordWithSerial($item['work'], $item['serial'], $keyword))
+            ->filter(fn (array $item): bool => $this->matchesKeywordWithSerial($item['serial'], $keyword))
             ->values();
 
         return $this->formatPaginatedCollection($matchedWorks, $page, $pageSize);
@@ -286,21 +286,11 @@ class WorkService
             ->orderByDesc('id');
     }
 
-    private function hasSerialSearchIntent(string $keyword): bool
-    {
-        return preg_match('/#?\d/u', $keyword) === 1;
-    }
-
-    private function matchesKeywordWithSerial(Work $work, int $serial, string $keyword): bool
+    private function matchesKeywordWithSerial(int $serial, string $keyword): bool
     {
         $normalizedKeyword = $this->normalizeSearchText($keyword);
-        $serialLabel = str_pad((string) $serial, 2, '0', STR_PAD_LEFT);
+        $serialLabel = str_pad((string) $serial, 3, '0', STR_PAD_LEFT);
         $searchableText = $this->normalizeSearchText(implode(' ', [
-            $work->title,
-            $work->description,
-            $work->user?->employee_no,
-            $work->user?->nickname,
-            $work->user?->name,
             (string) $serial,
             $serialLabel,
             '#'.$serial,
@@ -330,7 +320,7 @@ class WorkService
             'items' => $works
                 ->slice($offset, $safePageSize)
                 ->values()
-                ->map(fn (array $item): array => $this->formatWork($item['work'], $item['serial']))
+                ->map(fn (array $item): array => $this->formatWork($item['work']))
                 ->all(),
             'pagination' => [
                 'page' => $safePage,
@@ -349,5 +339,18 @@ class WorkService
     private function usedWorkQuota(User $user): int
     {
         return $user->usedWorkQuota();
+    }
+
+    private function ensureContentMimeTypeIsAllowed(string $workType, string $mimeType): void
+    {
+        $allowedMimeTypes = $workType === 'ai'
+            ? self::AI_CONTENT_MIME_TYPES
+            : self::TRADITIONAL_CONTENT_MIME_TYPES;
+
+        $message = $workType === 'ai'
+            ? 'AI 创作仅支持图片、视频或音频文件'
+            : '传统创作仅支持图片或音频文件';
+
+        abort_if(! in_array($mimeType, $allowedMimeTypes, true), 422, $message);
     }
 }

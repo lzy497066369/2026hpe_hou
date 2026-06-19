@@ -7,6 +7,8 @@ use App\Enums\RegistrationAuditStatus;
 use App\Enums\UploadUsageType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile as HttpUploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ExtendedApiTest extends TestCase
@@ -15,6 +17,8 @@ class ExtendedApiTest extends TestCase
 
     public function test_user_can_manage_profile_and_works_and_game_records(): void
     {
+        Storage::fake('public');
+
         $user = User::query()->create([
             'name' => 'Demo User',
             'email' => 'demo@example.com',
@@ -44,11 +48,10 @@ class ExtendedApiTest extends TestCase
             ->assertJsonPath('data.name', 'Updated User')
             ->assertJsonPath('data.phone', '13800000001');
 
-        $fileId = $this->withHeaders($headers)->postJson('/api/v1/uploads/policy', [
+        $fileId = $this->withHeaders($headers)->post('/api/v1/uploads/local', [
             'usageType' => UploadUsageType::WorkContent->value,
-        ])->json('data.fileId');
-
-        $this->withHeaders($headers)->postJson('/api/v1/uploads/complete', ['fileId' => $fileId])->assertOk();
+            'file' => HttpUploadedFile::fake()->image('work.png'),
+        ])->json('data.id');
 
         $work = $this->withHeaders($headers)->postJson('/api/v1/works/submit', [
             'type' => 'traditional',

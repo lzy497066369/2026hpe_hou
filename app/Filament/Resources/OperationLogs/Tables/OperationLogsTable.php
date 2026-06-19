@@ -2,19 +2,25 @@
 
 namespace App\Filament\Resources\OperationLogs\Tables;
 
+use App\Filament\Exports\OperationLogExporter;
+use App\Support\AdminDisplay;
+use Filament\Actions\ExportAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class OperationLogsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('user'))
             ->columns([
-                TextColumn::make('user.name')
+                TextColumn::make('user.username')
                     ->label('操作人')
+                    ->getStateUsing(fn ($record): string => $record->user ? AdminDisplay::preferredName($record->user) : '系统')
                     ->placeholder('系统')
                     ->searchable(),
                 TextColumn::make('module')
@@ -58,6 +64,11 @@ class OperationLogsTable
                         'registration_profiles' => '材料审核',
                         'lottery_records' => '获奖记录',
                     ]),
+            ])
+            ->headerActions([
+                ExportAction::make()
+                    ->label('导出 Excel')
+                    ->exporter(OperationLogExporter::class),
             ])
             ->recordActions([
                 ViewAction::make(),

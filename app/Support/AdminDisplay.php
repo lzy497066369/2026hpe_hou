@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\UploadedFile;
+use App\Models\User;
 
 class AdminDisplay
 {
@@ -55,6 +56,7 @@ class AdminDisplay
         return [
             'pending' => '待开奖',
             'won' => '已中奖',
+            'lost' => '未中奖',
             'missed' => '未中奖',
         ][$state] ?? '未填写';
     }
@@ -95,6 +97,11 @@ class AdminDisplay
         return self::url($file?->url);
     }
 
+    public static function preferredName(?User $user): string
+    {
+        return $user?->username ?: ($user?->name ?: '未填写');
+    }
+
     public static function url(?string $url): ?string
     {
         if ($url === null || $url === '') {
@@ -125,5 +132,32 @@ class AdminDisplay
     public static function isImage(?UploadedFile $file): bool
     {
         return str_starts_with((string) $file?->mime_type, 'image/');
+    }
+
+    public static function isAudio(?UploadedFile $file): bool
+    {
+        return str_starts_with((string) $file?->mime_type, 'audio/');
+    }
+
+    public static function isVideo(?UploadedFile $file): bool
+    {
+        return str_starts_with((string) $file?->mime_type, 'video/');
+    }
+
+    public static function mediaType(?UploadedFile $file): string
+    {
+        if (self::isImage($file)) {
+            return 'image';
+        }
+
+        if (self::isAudio($file)) {
+            return 'audio';
+        }
+
+        if (self::isVideo($file)) {
+            return 'video';
+        }
+
+        return 'file';
     }
 }

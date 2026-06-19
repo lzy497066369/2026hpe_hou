@@ -3,10 +3,13 @@
 namespace App\Filament\Resources\Users\Tables;
 
 use App\Enums\RegistrationAuditStatus;
+use App\Filament\Exports\UsersExporter;
 use App\Support\AdminDisplay;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportAction;
+use Filament\Actions\ExportBulkAction;
 use Filament\Actions\ViewAction;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Tables\Filters\SelectFilter;
@@ -30,9 +33,14 @@ class UsersTable
                         ->where('audit_status', RegistrationAuditStatus::Rejected->value),
                 ]))
             ->columns([
+                TextColumn::make('username')
+                    ->label('Preferred Name')
+                    ->getStateUsing(fn ($record): string => AdminDisplay::preferredName($record))
+                    ->searchable(),
                 TextColumn::make('name')
                     ->label('姓名')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('email')
                     ->label('邮箱')
                     ->searchable(),
@@ -48,6 +56,15 @@ class UsersTable
                 TextColumn::make('address')
                     ->label('地址')
                     ->limit(24)
+                    ->searchable(),
+                TextColumn::make('work_city')
+                    ->label('工作城市')
+                    ->searchable(),
+                TextColumn::make('mail_code')
+                    ->label('邮箱代码')
+                    ->searchable(),
+                TextColumn::make('work_address_code')
+                    ->label('工作地址代码')
                     ->searchable(),
                 TextColumn::make('work_quota_display')
                     ->label('已上传/可上传')
@@ -108,8 +125,16 @@ class UsersTable
                 ViewAction::make(),
                 EditAction::make(),
             ])
+            ->headerActions([
+                ExportAction::make()
+                    ->label('导出 Excel')
+                    ->exporter(UsersExporter::class),
+            ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    ExportBulkAction::make()
+                        ->label('导出选中 Excel')
+                        ->exporter(UsersExporter::class),
                     DeleteBulkAction::make(),
                 ]),
             ]);

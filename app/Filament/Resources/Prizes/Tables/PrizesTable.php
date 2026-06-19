@@ -2,10 +2,13 @@
 
 namespace App\Filament\Resources\Prizes\Tables;
 
+use App\Filament\Exports\PrizeExporter;
 use App\Support\AdminDisplay;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportAction;
+use Filament\Actions\ExportBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -59,8 +62,16 @@ class PrizesTable
                 ViewAction::make(),
                 EditAction::make(),
             ])
+            ->headerActions([
+                ExportAction::make()
+                    ->label('导出 Excel')
+                    ->exporter(PrizeExporter::class),
+            ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    ExportBulkAction::make()
+                        ->label('导出选中 Excel')
+                        ->exporter(PrizeExporter::class),
                     DeleteBulkAction::make(),
                 ]),
             ]);

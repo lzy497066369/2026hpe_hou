@@ -16,6 +16,8 @@ class UserForm
                 TextInput::make('name')
                     ->label('姓名')
                     ->required(),
+                TextInput::make('username')
+                    ->label('Preferred Name'),
                 TextInput::make('email')
                     ->label('邮箱')
                     ->email()
@@ -31,6 +33,12 @@ class UserForm
                 TextInput::make('address')
                     ->label('地址')
                     ->columnSpanFull(),
+                TextInput::make('work_city')
+                    ->label('工作城市'),
+                TextInput::make('mail_code')
+                    ->label('邮箱代码'),
+                TextInput::make('work_address_code')
+                    ->label('工作地址代码'),
                 TextInput::make('avatar')
                     ->label('头像地址'),
                 Select::make('status')

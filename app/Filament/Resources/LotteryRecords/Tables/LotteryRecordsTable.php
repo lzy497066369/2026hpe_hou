@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\LotteryRecords\Tables;
 
+use App\Filament\Exports\LotteryRecordExporter;
 use App\Services\Admin\FinalAwardService;
 use App\Services\Admin\OperationLogger;
 use App\Support\AdminDisplay;
@@ -9,22 +10,27 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportAction;
+use Filament\Actions\ExportBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class LotteryRecordsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['prize', 'prizeClaim', 'user']))
             ->columns([
                 TextColumn::make('user_id')
                     ->label('内部用户编号')
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('user.name')
-                    ->label('姓名')
+                TextColumn::make('user.username')
+                    ->label('Preferred Name')
+                    ->getStateUsing(fn ($record): string => AdminDisplay::preferredName($record->user))
                     ->searchable(),
                 TextColumn::make('user.employee_no')
                     ->label('员工号')
@@ -71,6 +77,11 @@ class LotteryRecordsTable
                 ViewAction::make(),
                 EditAction::make(),
             ])
+            ->headerActions([
+                ExportAction::make()
+                    ->label('导出 Excel')
+                    ->exporter(LotteryRecordExporter::class),
+            ])
             ->toolbarActions([
                 Action::make('calculateFinalAwards')
                     ->label('计算最终奖项')
@@ -80,6 +91,9 @@ class LotteryRecordsTable
                         app(OperationLogger::class)->log('lottery_records', 'calculate_final_awards', null, $result);
                     }),
                 BulkActionGroup::make([
+                    ExportBulkAction::make()
+                        ->label('导出选中 Excel')
+                        ->exporter(LotteryRecordExporter::class),
                     DeleteBulkAction::make(),
                 ]),
             ]);

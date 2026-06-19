@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\QuotaApplications\Tables;
 
+use App\Filament\Exports\QuotaApplicationExporter;
 use App\Models\QuotaApplication;
 use App\Services\Admin\OperationLogger;
 use App\Support\AdminDisplay;
@@ -9,21 +10,26 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportAction;
+use Filament\Actions\ExportBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class QuotaApplicationsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('user'))
             ->defaultSort('submitted_at', 'desc')
             ->columns([
-                TextColumn::make('user.nickname')
-                    ->label('昵称')
+                TextColumn::make('user.username')
+                    ->label('Preferred Name')
+                    ->getStateUsing(fn (QuotaApplication $record): string => AdminDisplay::preferredName($record->user))
                     ->searchable(),
                 TextColumn::make('user.email')
                     ->label('邮箱')
@@ -95,8 +101,16 @@ class QuotaApplicationsTable
                 ViewAction::make(),
                 EditAction::make(),
             ])
+            ->headerActions([
+                ExportAction::make()
+                    ->label('导出 Excel')
+                    ->exporter(QuotaApplicationExporter::class),
+            ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    ExportBulkAction::make()
+                        ->label('导出选中 Excel')
+                        ->exporter(QuotaApplicationExporter::class),
                     DeleteBulkAction::make(),
                 ]),
             ]);

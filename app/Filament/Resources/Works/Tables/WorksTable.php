@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Works\Tables;
 
+use App\Filament\Exports\WorkExporter;
 use App\Models\Work;
 use App\Services\Admin\OperationLogger;
 use App\Support\AdminDisplay;
@@ -9,26 +10,35 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportAction;
+use Filament\Actions\ExportBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class WorksTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['coverFile', 'user']))
             ->defaultSort('submitted_at', 'desc')
             ->columns([
                 ImageColumn::make('coverFile.url')
                     ->label('作品封面')
                     ->getStateUsing(fn (Work $record): ?string => AdminDisplay::fileUrl($record->coverFile))
                     ->imageHeight(64),
-                TextColumn::make('user.name')
-                    ->label('姓名')
+                ViewColumn::make('contentFile.url')
+                    ->label('作品内容')
+                    ->view('filament.tables.columns.work-media-preview'),
+                TextColumn::make('user.username')
+                    ->label('Preferred Name')
+                    ->getStateUsing(fn (Work $record): string => AdminDisplay::preferredName($record->user))
                     ->searchable(),
                 TextColumn::make('user.employee_no')
                     ->label('员工号')
@@ -153,8 +163,16 @@ class WorksTable
                 ViewAction::make(),
                 EditAction::make(),
             ])
+            ->headerActions([
+                ExportAction::make()
+                    ->label('导出 Excel')
+                    ->exporter(WorkExporter::class),
+            ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    ExportBulkAction::make()
+                        ->label('导出选中 Excel')
+                        ->exporter(WorkExporter::class),
                     DeleteBulkAction::make(),
                 ]),
             ]);

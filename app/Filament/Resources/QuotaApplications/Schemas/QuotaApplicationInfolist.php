@@ -13,9 +13,9 @@ class QuotaApplicationInfolist
     {
         return $schema
             ->components([
-                TextEntry::make('user.nickname')
-                    ->label('昵称')
-                    ->placeholder('-'),
+                TextEntry::make('user.username')
+                    ->label('Preferred Name')
+                    ->getStateUsing(fn ($record): string => AdminDisplay::preferredName($record->user)),
                 TextEntry::make('user.email')
                     ->label('邮箱')
                     ->placeholder('-'),
