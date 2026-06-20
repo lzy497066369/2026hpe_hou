@@ -59,6 +59,13 @@ class AdminTableEnhancementTest extends TestCase
         $this->assertSame([ExportFormat::Csv], $exporter->getFormats());
     }
 
+    public function test_admin_exports_run_synchronously(): void
+    {
+        $exporter = new UsersExporter(new \Filament\Actions\Exports\Models\Export, [], []);
+
+        $this->assertSame('sync', $exporter->getJobConnection());
+    }
+
     public function test_work_exporter_contains_complete_identifier_columns(): void
     {
         $exporter = new WorkExporter(new \Filament\Actions\Exports\Models\Export, [], []);

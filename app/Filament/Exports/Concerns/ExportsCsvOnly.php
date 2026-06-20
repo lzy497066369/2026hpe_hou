@@ -12,6 +12,11 @@ trait ExportsCsvOnly
         return [ExportFormat::Csv];
     }
 
+    public function getJobConnection(): string
+    {
+        return 'sync';
+    }
+
     public static function getCompletedNotificationBody(Export $export): string
     {
         return '导出完成，共导出 '.$export->successful_rows.' 条记录。';
