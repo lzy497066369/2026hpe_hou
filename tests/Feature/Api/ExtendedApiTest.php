@@ -10,6 +10,7 @@ use App\Enums\WorkType;
 use App\Models\GameRecord;
 use App\Models\User;
 use App\Models\Work;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile as HttpUploadedFile;
 use Illuminate\Support\Facades\Schema;
@@ -218,9 +219,10 @@ class ExtendedApiTest extends TestCase
 
     public function test_admin_statistics_overview_survives_before_last_login_at_migration_is_applied(): void
     {
-        Schema::shouldReceive('hasColumn')
-            ->with('users', 'last_login_at')
-            ->andReturn(false);
+        Schema::table('users', function (Blueprint $table): void {
+            $table->dropIndex('users_last_login_at_index');
+            $table->dropColumn('last_login_at');
+        });
 
         $admin = User::query()->create([
             'name' => 'Admin',

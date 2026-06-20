@@ -3,7 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Schema;
+use App\Support\DatabaseColumn;
 
 class AuthService
 {
@@ -28,7 +28,7 @@ class AuthService
             $user->forceFill(['nickname' => $nickname]);
         }
 
-        if (Schema::hasColumn('users', 'last_login_at')) {
+        if (DatabaseColumn::exists('users', 'last_login_at')) {
             $user->forceFill(['last_login_at' => now()]);
         }
 

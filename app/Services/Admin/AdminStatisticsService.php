@@ -12,11 +12,11 @@ use App\Models\RegistrationProfile;
 use App\Models\User;
 use App\Models\Work;
 use App\Support\AwardLevels;
+use App\Support\DatabaseColumn;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class AdminStatisticsService
 {
@@ -141,6 +141,6 @@ class AdminStatisticsService
 
     private function lastLoginAtExists(): bool
     {
-        return Schema::hasColumn('users', 'last_login_at');
+        return DatabaseColumn::exists('users', 'last_login_at');
     }
 }
