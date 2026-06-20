@@ -5,11 +5,11 @@ namespace App\Filament\Exports\Concerns;
 use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Actions\Exports\Models\Export;
 
-trait ExportsXlsxOnly
+trait ExportsCsvOnly
 {
     public function getFormats(): array
     {
-        return [ExportFormat::Xlsx];
+        return [ExportFormat::Csv];
     }
 
     public static function getCompletedNotificationBody(Export $export): string

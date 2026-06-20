@@ -39,6 +39,14 @@ class LotteryRecordsTable
                     ->label('邮箱')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('user.address')
+                    ->label('城市')
+                    ->searchable()
+                    ->placeholder('-'),
+                TextColumn::make('user.work_address_code')
+                    ->label('城市code')
+                    ->searchable()
+                    ->placeholder('-'),
                 TextColumn::make('prize.name')
                     ->label('奖品')
                     ->searchable(),
@@ -54,6 +62,19 @@ class LotteryRecordsTable
                     ->label('领奖状态')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => AdminDisplay::claimStatus($state))
+                    ->placeholder('-'),
+                TextColumn::make('prizeClaim.claim_type')
+                    ->label('奖品领取方式')
+                    ->getStateUsing(fn ($record): string => AdminDisplay::claimType($record->prizeClaim?->claim_type)),
+                TextColumn::make('prizeClaim.receiver_name')
+                    ->label('姓名')
+                    ->placeholder('-'),
+                TextColumn::make('prizeClaim.receiver_phone')
+                    ->label('电话')
+                    ->placeholder('-'),
+                TextColumn::make('prizeClaim.receiver_address')
+                    ->label('地址')
+                    ->limit(32)
                     ->placeholder('-'),
                 TextColumn::make('drawn_at')
                     ->label('开奖时间')
@@ -83,7 +104,7 @@ class LotteryRecordsTable
             ])
             ->headerActions([
                 ExportAction::make()
-                    ->label('导出 Excel')
+                    ->label('导出 CSV')
                     ->exporter(LotteryRecordExporter::class),
             ])
             ->toolbarActions([
@@ -96,7 +117,7 @@ class LotteryRecordsTable
                     }),
                 BulkActionGroup::make([
                     ExportBulkAction::make()
-                        ->label('导出选中 Excel')
+                        ->label('导出选中 CSV')
                         ->exporter(LotteryRecordExporter::class),
                     DeleteBulkAction::make(),
                 ]),

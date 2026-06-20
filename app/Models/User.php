@@ -34,6 +34,7 @@ class User extends Authenticatable implements FilamentUser
         'status',
         'role',
         'password',
+        'last_login_at',
     ];
 
     /**
@@ -55,6 +56,7 @@ class User extends Authenticatable implements FilamentUser
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

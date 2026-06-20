@@ -195,6 +195,8 @@ class LotteryService
             })
             ->values()
             ->map(function (LotteryRecord $record): array {
+                $claim = $record->prizeClaim;
+
                 return [
                     'id' => (string) $record->id,
                     'prize' => $record->prize === null ? null : [
@@ -203,9 +205,16 @@ class LotteryService
                         'level' => $record->prize->level,
                         'imageUrl' => $record->prize->image_url,
                     ],
-                    'claimType' => $record->prizeClaim?->claim_type,
-                    'claimStatus' => $record->prizeClaim?->claim_status,
-                    'claimedAt' => $record->prizeClaim?->created_at?->toISOString(),
+                    'claimType' => $claim?->claim_type,
+                    'claimStatus' => $claim?->claim_status,
+                    'claimedAt' => $claim?->created_at?->toISOString(),
+                    'receiverName' => $claim?->receiver_name,
+                    'receiverPhone' => $claim?->receiver_phone,
+                    'receiverAddress' => $claim?->receiver_address,
+                    'pickupName' => $claim?->pickup_name,
+                    'pickupPhone' => $claim?->pickup_phone,
+                    'pickupEmployeeNo' => $claim?->pickup_employee_no,
+                    'pickupRemark' => $claim?->pickup_remark,
                 ];
             })
             ->all();

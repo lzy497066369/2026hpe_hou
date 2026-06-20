@@ -2,7 +2,7 @@
 
 namespace App\Filament\Exports;
 
-use App\Filament\Exports\Concerns\ExportsXlsxOnly;
+use App\Filament\Exports\Concerns\ExportsCsvOnly;
 use App\Models\QuotaApplication;
 use App\Support\AdminDisplay;
 use Filament\Actions\Exports\ExportColumn;
@@ -10,7 +10,7 @@ use Filament\Actions\Exports\Exporter;
 
 class QuotaApplicationExporter extends Exporter
 {
-    use ExportsXlsxOnly;
+    use ExportsCsvOnly;
 
     protected static ?string $model = QuotaApplication::class;
 

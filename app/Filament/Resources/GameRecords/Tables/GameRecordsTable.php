@@ -68,13 +68,13 @@ class GameRecordsTable
             ])
             ->headerActions([
                 ExportAction::make()
-                    ->label('导出 Excel')
+                    ->label('导出 CSV')
                     ->exporter(GameRecordExporter::class),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     ExportBulkAction::make()
-                        ->label('导出选中 Excel')
+                        ->label('导出选中 CSV')
                         ->exporter(GameRecordExporter::class),
                     DeleteBulkAction::make(),
                 ]),

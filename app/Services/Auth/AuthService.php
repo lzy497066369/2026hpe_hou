@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
 
 class AuthService
 {
@@ -24,8 +25,14 @@ class AuthService
         if ($user->nickname === null || $user->nickname === '') {
             abort_if($nickname === '', 422, '首次登录请填写昵称');
 
-            $user->forceFill(['nickname' => $nickname])->save();
+            $user->forceFill(['nickname' => $nickname]);
         }
+
+        if (Schema::hasColumn('users', 'last_login_at')) {
+            $user->forceFill(['last_login_at' => now()]);
+        }
+
+        $user->save();
 
         $token = $user->createToken('h5-api')->plainTextToken;
 

@@ -67,7 +67,7 @@ class OperationLogsTable
             ])
             ->headerActions([
                 ExportAction::make()
-                    ->label('导出 Excel')
+                    ->label('导出 CSV')
                     ->exporter(OperationLogExporter::class),
             ])
             ->recordActions([

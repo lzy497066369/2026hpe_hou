@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\AdminDashboard;
 use App\Filament\Pages\Auth\AdminLogin;
+use Filament\Enums\DatabaseNotificationsPosition;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -30,6 +31,7 @@ class AdminPanelProvider extends PanelProvider
             ->login(AdminLogin::class)
             ->brandName('像素筑梦，随心绘趣')
             ->font('Microsoft YaHei')
+            ->databaseNotifications(isLazy: false, position: DatabaseNotificationsPosition::Topbar)
             ->colors([
                 'primary' => Color::hex('#006be8'),
                 'warning' => Color::hex('#ffd94a'),

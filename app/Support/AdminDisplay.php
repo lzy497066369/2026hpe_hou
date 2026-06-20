@@ -73,6 +73,14 @@ class AdminDisplay
         ][$state] ?? '未填写';
     }
 
+    public static function claimType(?string $state): string
+    {
+        return [
+            'shipping' => '邮寄',
+            'pickup' => '现场领取',
+        ][$state] ?? '现场领取';
+    }
+
     public static function userStatus(?string $state): string
     {
         return [

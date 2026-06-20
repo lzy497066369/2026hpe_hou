@@ -20,6 +20,12 @@ class LotteryRecordInfolist
                 TextEntry::make('user.email')
                     ->label('邮箱')
                     ->placeholder('-'),
+                TextEntry::make('user.address')
+                    ->label('城市')
+                    ->placeholder('-'),
+                TextEntry::make('user.work_address_code')
+                    ->label('城市code')
+                    ->placeholder('-'),
                 TextEntry::make('prize.name')
                     ->label('奖品')
                     ->placeholder('未中奖'),
@@ -34,6 +40,18 @@ class LotteryRecordInfolist
                     ->label('领奖状态')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => AdminDisplay::claimStatus($state))
+                    ->placeholder('-'),
+                TextEntry::make('prizeClaim.claim_type')
+                    ->label('奖品领取方式')
+                    ->getStateUsing(fn ($record): string => AdminDisplay::claimType($record->prizeClaim?->claim_type)),
+                TextEntry::make('prizeClaim.receiver_name')
+                    ->label('姓名')
+                    ->placeholder('-'),
+                TextEntry::make('prizeClaim.receiver_phone')
+                    ->label('电话')
+                    ->placeholder('-'),
+                TextEntry::make('prizeClaim.receiver_address')
+                    ->label('地址')
                     ->placeholder('-'),
                 TextEntry::make('drawn_at')
                     ->label('开奖时间')

@@ -2,7 +2,7 @@
 
 namespace App\Filament\Exports;
 
-use App\Filament\Exports\Concerns\ExportsXlsxOnly;
+use App\Filament\Exports\Concerns\ExportsCsvOnly;
 use App\Models\Work;
 use App\Support\AdminDisplay;
 use Filament\Actions\Exports\ExportColumn;
@@ -10,13 +10,17 @@ use Filament\Actions\Exports\Exporter;
 
 class WorkExporter extends Exporter
 {
-    use ExportsXlsxOnly;
+    use ExportsCsvOnly;
 
     protected static ?string $model = Work::class;
 
     public static function getColumns(): array
     {
         return [
+            ExportColumn::make('id')->label('作品ID'),
+            ExportColumn::make('user_id')->label('用户ID'),
+            ExportColumn::make('cover_file_id')->label('封面文件ID'),
+            ExportColumn::make('content_file_id')->label('内容文件ID'),
             ExportColumn::make('coverFile.url')->label('作品封面链接')
                 ->formatStateUsing(fn (Work $record): ?string => AdminDisplay::fileUrl($record->coverFile)),
             ExportColumn::make('contentFile.url')->label('作品内容链接')

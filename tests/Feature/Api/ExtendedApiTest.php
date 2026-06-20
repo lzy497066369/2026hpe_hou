@@ -5,9 +5,14 @@ namespace Tests\Feature\Api;
 use App\Enums\WorkPublishStatus;
 use App\Enums\RegistrationAuditStatus;
 use App\Enums\UploadUsageType;
+use App\Enums\WorkGroup;
+use App\Enums\WorkType;
+use App\Models\GameRecord;
 use App\Models\User;
+use App\Models\Work;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile as HttpUploadedFile;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -105,6 +110,8 @@ class ExtendedApiTest extends TestCase
 
     public function test_admin_can_read_statistics_overview(): void
     {
+        $this->travelTo(now('Asia/Shanghai')->setDate(2026, 6, 20)->setTime(12, 0));
+
         $admin = User::query()->create([
             'name' => 'Admin',
             'email' => 'admin@example.com',
@@ -113,21 +120,53 @@ class ExtendedApiTest extends TestCase
             'password' => 'unused',
             'status' => 'active',
             'role' => 'admin',
+            'last_login_at' => now(),
         ]);
 
-        User::query()->create([
+        $participant = User::query()->create([
             'name' => 'Participant',
             'email' => 'participant@example.com',
             'employee_no' => 'E0002',
             'nickname' => 'participant',
             'password' => 'unused',
             'status' => 'active',
+            'last_login_at' => now()->subDay(),
         ])->registrationProfile()->create([
             'employee_no' => 'E0002',
             'name' => 'Participant',
             'department' => 'Demo',
             'contact' => '13800000002',
             'audit_status' => RegistrationAuditStatus::Approved->value,
+        ]);
+        $participant = User::query()->where('employee_no', 'E0002')->firstOrFail();
+        $gameParticipant = User::query()->create([
+            'name' => 'Game Participant',
+            'email' => 'game-participant@example.com',
+            'employee_no' => 'E0003',
+            'nickname' => 'game-participant',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $traditionalEmployeeWork = $this->createOverviewWork($participant, WorkType::Traditional->value, WorkGroup::Employee->value, now());
+        $this->createOverviewWork($participant, WorkType::Traditional->value, WorkGroup::Children->value, now()->subDay());
+        $this->createOverviewWork($participant, WorkType::Ai->value, WorkGroup::Employee->value, now()->subDays(2));
+        $this->createOverviewWork($participant, WorkType::Ai->value, WorkGroup::Children->value, now()->subDays(13));
+        $this->createOverviewWork($participant, WorkType::Ai->value, WorkGroup::Children->value, now()->subDays(20));
+
+        GameRecord::query()->create([
+            'user_id' => $participant->id,
+            'distance' => 1000,
+            'score' => 5000,
+            'duration' => 60,
+            'played_at' => now(),
+        ]);
+        GameRecord::query()->create([
+            'user_id' => $gameParticipant->id,
+            'distance' => 900,
+            'score' => 3000,
+            'duration' => 60,
+            'played_at' => now()->subDay(),
         ]);
 
         $token = $this->postJson('/api/v1/auth/login', [
@@ -145,10 +184,64 @@ class ExtendedApiTest extends TestCase
                     'workParticipantCount',
                     'workTotalCount',
                     'workCountsByTrack',
+                    'todayGamePlayCount',
+                    'todayWorkUploadCount',
+                    'todayLoginUserCount',
+                    'claimableParticipationAwardCount',
+                    'traditionalEmployeeWorkCount',
+                    'traditionalChildrenWorkCount',
+                    'aiEmployeeWorkCount',
+                    'aiChildrenWorkCount',
+                    'gamePlayTrend',
+                    'workUploadTrend',
                     'gameParticipantCount',
                     'gamePlayTotalCount',
                 ],
-            ]);
+            ])
+            ->assertJsonPath('data.todayGamePlayCount', 1)
+            ->assertJsonPath('data.todayWorkUploadCount', 1)
+            ->assertJsonPath('data.todayLoginUserCount', 1)
+            ->assertJsonPath('data.claimableParticipationAwardCount', 5)
+            ->assertJsonPath('data.traditionalEmployeeWorkCount', 1)
+            ->assertJsonPath('data.traditionalChildrenWorkCount', 1)
+            ->assertJsonPath('data.aiEmployeeWorkCount', 1)
+            ->assertJsonPath('data.aiChildrenWorkCount', 2)
+            ->assertJsonPath('data.workUploadTrend.13.date', now()->toDateString())
+            ->assertJsonPath('data.workUploadTrend.13.count', 1)
+            ->assertJsonPath('data.gamePlayTrend.13.date', now()->toDateString())
+            ->assertJsonPath('data.gamePlayTrend.13.count', 1);
+
+        $this->assertSame(WorkPublishStatus::Published->value, $traditionalEmployeeWork->publish_status);
+
+        $this->travelBack();
+    }
+
+    public function test_admin_statistics_overview_survives_before_last_login_at_migration_is_applied(): void
+    {
+        Schema::shouldReceive('hasColumn')
+            ->with('users', 'last_login_at')
+            ->andReturn(false);
+
+        $admin = User::query()->create([
+            'name' => 'Admin',
+            'email' => 'admin@example.com',
+            'employee_no' => 'A0001',
+            'nickname' => 'admin',
+            'password' => 'unused',
+            'status' => 'active',
+            'role' => 'admin',
+        ]);
+
+        $token = $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => $admin->employee_no,
+            'email' => $admin->email,
+            'nickname' => $admin->nickname,
+        ])->json('data.token');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->getJson('/api/v1/admin/statistics/overview')
+            ->assertOk()
+            ->assertJsonPath('data.todayLoginUserCount', 0);
     }
 
     public function test_user_keeps_only_one_best_game_record(): void
@@ -278,5 +371,27 @@ class ExtendedApiTest extends TestCase
             'usage_type' => UploadUsageType::WorkContent->value,
             'is_committed' => false,
         ])->id;
+    }
+
+    private function createOverviewWork(User $user, string $type, string $group, \DateTimeInterface $createdAt): Work
+    {
+        $work = Work::query()->create([
+            'user_id' => $user->id,
+            'type' => $type,
+            'group' => $group,
+            'title' => $type.' '.$group,
+            'description' => 'Overview work',
+            'audit_status' => 'published',
+            'publish_status' => WorkPublishStatus::Published->value,
+            'vote_count' => 0,
+        ]);
+
+        $work->timestamps = false;
+        $work->forceFill([
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
+        ])->save();
+
+        return $work->refresh();
     }
 }

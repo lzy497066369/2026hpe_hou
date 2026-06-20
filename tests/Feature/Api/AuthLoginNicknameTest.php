@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class AuthLoginNicknameTest extends TestCase
@@ -105,5 +106,52 @@ class AuthLoginNicknameTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('data.user.nickname', '已有昵称');
+    }
+
+    public function test_successful_login_records_last_login_at(): void
+    {
+        $this->travelTo(now('Asia/Shanghai')->setDate(2026, 6, 20)->setTime(10, 30));
+
+        User::query()->create([
+            'name' => 'Demo User',
+            'email' => 'demo@example.com',
+            'employee_no' => 'E0001',
+            'nickname' => '已有昵称',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => 'E0001',
+            'email' => 'demo@example.com',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('users', [
+            'employee_no' => 'E0001',
+            'last_login_at' => now()->format('Y-m-d H:i:s'),
+        ]);
+
+        $this->travelBack();
+    }
+
+    public function test_login_still_works_before_last_login_at_migration_is_applied(): void
+    {
+        Schema::shouldReceive('hasColumn')
+            ->with('users', 'last_login_at')
+            ->andReturn(false);
+
+        User::query()->create([
+            'name' => 'Demo User',
+            'email' => 'demo@example.com',
+            'employee_no' => 'E0001',
+            'nickname' => '已有昵称',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => 'E0001',
+            'email' => 'demo@example.com',
+        ])->assertOk();
     }
 }

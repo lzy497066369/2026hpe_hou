@@ -2,14 +2,14 @@
 
 namespace App\Filament\Exports;
 
-use App\Filament\Exports\Concerns\ExportsXlsxOnly;
+use App\Filament\Exports\Concerns\ExportsCsvOnly;
 use App\Models\ActivitySetting;
 use Filament\Actions\Exports\ExportColumn;
 use Filament\Actions\Exports\Exporter;
 
 class ActivitySettingExporter extends Exporter
 {
-    use ExportsXlsxOnly;
+    use ExportsCsvOnly;
 
     protected static ?string $model = ActivitySetting::class;
 

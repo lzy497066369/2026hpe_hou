@@ -8,6 +8,10 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class AdminOverviewStats extends StatsOverviewWidget
 {
+    protected ?string $heading = '数据总览';
+
+    protected static ?int $sort = 10;
+
     protected function getStats(): array
     {
         $overview = app(AdminStatisticsService::class)->overview();
@@ -19,6 +23,21 @@ class AdminOverviewStats extends StatsOverviewWidget
             Stat::make('作品总数', (string) $overview['workTotalCount']),
             Stat::make('游戏参与人数', (string) $overview['gameParticipantCount']),
             Stat::make('游戏总次数', (string) $overview['gamePlayTotalCount']),
+            Stat::make('今日上传作品', (string) $overview['todayWorkUploadCount']),
+            Stat::make('可领取阳光普照数', (string) $overview['claimableParticipationAwardCount']),
+            Stat::make('传统作品 / 成人', (string) $overview['traditionalEmployeeWorkCount']),
+            Stat::make('传统作品 / 儿童', (string) $overview['traditionalChildrenWorkCount']),
+            Stat::make('AI 作品 / 成人', (string) $overview['aiEmployeeWorkCount']),
+            Stat::make('AI 作品 / 儿童', (string) $overview['aiChildrenWorkCount']),
+        ];
+    }
+
+    protected function getColumns(): int|array|null
+    {
+        return [
+            '@xl' => 4,
+            '!@lg' => 3,
+            'default' => 1,
         ];
     }
 }

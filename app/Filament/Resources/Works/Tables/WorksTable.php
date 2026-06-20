@@ -7,6 +7,7 @@ use App\Models\Work;
 use App\Services\Admin\OperationLogger;
 use App\Support\AdminDisplay;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -165,13 +166,27 @@ class WorksTable
             ])
             ->headerActions([
                 ExportAction::make()
-                    ->label('导出 Excel')
+                    ->label('导出 CSV')
                     ->exporter(WorkExporter::class),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BulkAction::make('bulkApprove')
+                        ->label('一键通过')
+                        ->requiresConfirmation()
+                        ->action(function ($records): void {
+                            $records->each(function (Work $record): void {
+                                $record->update([
+                                    'audit_status' => 'approved',
+                                    'publish_status' => 'published',
+                                    'reviewed_at' => now(),
+                                ]);
+
+                                app(OperationLogger::class)->log('works', 'approve', $record);
+                            });
+                        }),
                     ExportBulkAction::make()
-                        ->label('导出选中 Excel')
+                        ->label('导出选中 CSV')
                         ->exporter(WorkExporter::class),
                     DeleteBulkAction::make(),
                 ]),
