@@ -20,7 +20,6 @@ class RegistrationProfileForm
                     ->label('员工')
                     ->relationship('user', 'name')
                     ->searchable(['name', 'employee_no', 'email'])
-                    ->preload()
                     ->required()
                     ->disabled(fn (string $operation): bool => $operation === 'edit'),
                 TextInput::make('employee_no')
@@ -39,8 +38,7 @@ class RegistrationProfileForm
                     ->label('材料文件')
                     ->relationship('materialFile', 'url')
                     ->getOptionLabelFromRecordUsing(fn (UploadedFile $record): string => AdminDisplay::fileName($record))
-                    ->searchable(['url', 'path', 'mime_type'])
-                    ->preload(),
+                    ->searchable(['url', 'path', 'mime_type']),
                 Select::make('audit_status')
                     ->label('审核状态')
                     ->options([

@@ -17,14 +17,16 @@ class LotteryRecordForm
                     ->label('员工')
                     ->relationship('user', 'name')
                     ->searchable(['name', 'employee_no', 'email'])
-                    ->preload()
                     ->required()
                     ->disabled(fn (string $operation): bool => $operation === 'edit'),
                 Select::make('prize_id')
                     ->label('奖品')
                     ->relationship('prize', 'name')
-                    ->searchable()
-                    ->preload(),
+                    ->searchable(),
+                Select::make('work_id')
+                    ->label('关联作品')
+                    ->relationship('work', 'title')
+                    ->searchable(),
                 Select::make('result_status')
                     ->label('中奖状态')
                     ->options([

@@ -20,7 +20,6 @@ class WorkForm
                     ->label('员工')
                     ->relationship('user', 'name')
                     ->searchable(['name', 'employee_no', 'email'])
-                    ->preload()
                     ->required()
                     ->disabled(fn (string $operation): bool => $operation === 'edit'),
                 Select::make('type')
@@ -47,14 +46,12 @@ class WorkForm
                     ->label('作品封面')
                     ->relationship('coverFile', 'url')
                     ->getOptionLabelFromRecordUsing(fn (UploadedFile $record): string => AdminDisplay::fileName($record))
-                    ->searchable(['url', 'path', 'mime_type'])
-                    ->preload(),
+                    ->searchable(['url', 'path', 'mime_type']),
                 Select::make('content_file_id')
                     ->label('作品文件')
                     ->relationship('contentFile', 'url')
                     ->getOptionLabelFromRecordUsing(fn (UploadedFile $record): string => AdminDisplay::fileName($record))
-                    ->searchable(['url', 'path', 'mime_type'])
-                    ->preload(),
+                    ->searchable(['url', 'path', 'mime_type']),
                 TextInput::make('tool_name')
                     ->label('创作工具'),
                 Textarea::make('prompt_text')

@@ -23,12 +23,12 @@ class LotteryRecordsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['prize', 'prizeClaim', 'user']))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['prize', 'prizeClaim', 'user', 'work']))
             ->columns([
                 TextColumn::make('user_id')
                     ->label('内部用户编号')
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('user.username')
+                TextColumn::make('user.name')
                     ->label('Preferred Name')
                     ->getStateUsing(fn ($record): string => AdminDisplay::preferredName($record->user))
                     ->searchable(),
@@ -42,6 +42,10 @@ class LotteryRecordsTable
                 TextColumn::make('prize.name')
                     ->label('奖品')
                     ->searchable(),
+                TextColumn::make('work.title')
+                    ->label('关联作品')
+                    ->searchable()
+                    ->placeholder('-'),
                 TextColumn::make('result_status')
                     ->label('中奖状态')
                     ->badge()

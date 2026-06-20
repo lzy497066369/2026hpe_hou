@@ -241,7 +241,7 @@ class DatabaseBackedApiTest extends TestCase
             'name' => 'Traditional User',
             'email' => 'traditional@example.com',
             'employee_no' => 'E0101',
-            'nickname' => 'traditional',
+            'nickname' => 'trad-aud',
             'password' => 'unused',
             'status' => 'active',
         ]);
@@ -274,6 +274,47 @@ class DatabaseBackedApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('data.contentMimeType', 'audio/mpeg');
+    }
+
+    public function test_traditional_work_accepts_video_content_and_returns_mime_type(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Traditional Video User',
+            'email' => 'traditional-video@example.com',
+            'employee_no' => 'E0103',
+            'nickname' => 'trad-vid',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $content = UploadedFile::query()->create([
+            'user_id' => $user->id,
+            'disk' => 'local',
+            'path' => 'uploads/work.mp4',
+            'url' => 'https://example.com/work.mp4',
+            'mime_type' => 'video/mp4',
+            'size' => 1024,
+            'checksum' => 'checksum-video-traditional',
+            'usage_type' => UploadUsageType::WorkContent->value,
+            'is_committed' => false,
+        ]);
+
+        $token = $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => $user->employee_no,
+            'email' => $user->email,
+            'nickname' => $user->nickname,
+        ])->json('data.token');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/api/v1/works/submit', [
+                'type' => WorkType::Traditional->value,
+                'group' => WorkGroup::Employee->value,
+                'title' => 'Traditional Video',
+                'description' => 'Video work',
+                'contentFileId' => (string) $content->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.contentMimeType', 'video/mp4');
     }
 
     public function test_ai_work_accepts_audio_content_and_returns_mime_type(): void

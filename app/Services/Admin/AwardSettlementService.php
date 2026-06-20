@@ -7,6 +7,7 @@ use App\Enums\WorkGroup;
 use App\Enums\WorkPublishStatus;
 use App\Enums\WorkType;
 use App\Models\GameRecord;
+use App\Models\LotteryQualification;
 use App\Models\LotteryRecord;
 use App\Models\Prize;
 use App\Models\User;
@@ -97,13 +98,18 @@ class AwardSettlementService
             ->unique()
             ->all();
 
-        return User::query()
-            ->whereNotIn('id', $excludedUserIds)
-            ->whereHas('works', fn ($query) => $query->where('publish_status', WorkPublishStatus::Published->value))
-            ->whereHas('gameRecords')
+        return Work::query()
+            ->with('user')
+            ->where('publish_status', WorkPublishStatus::Published->value)
+            ->whereNotIn('user_id', $excludedUserIds)
+            ->whereHas('user.gameRecords')
             ->orderBy('id')
             ->get()
-            ->map(fn (User $user): array => $this->userColumns($user))
+            ->map(fn (Work $work): array => [
+                ...$this->userColumns($work->user),
+                'work_id' => $work->id,
+                'work_title' => $work->title,
+            ])
             ->values()
             ->all();
     }
@@ -194,6 +200,33 @@ class AwardSettlementService
     /**
      * @return array<int, array<string, mixed>>
      */
+    public function previewFragranceQualifications(): array
+    {
+        return collect($this->fragranceCandidates())
+            ->filter(fn (array $row): bool => $row['eligible'])
+            ->map(fn (array $row): array => [
+                ...$row,
+                'chance_count' => $row['weight'],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function publishFragranceQualifications(): array
+    {
+        return $this->publishQualifications(
+            AwardLevels::FRAGRANCE_VOTE,
+            $this->previewFragranceQualifications(),
+            fn (array $row): int => (int) $row['chance_count'],
+        );
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function dreamParkCandidates(): array
     {
         $usersWithPublishedWork = Work::query()
@@ -239,6 +272,33 @@ class AwardSettlementService
     }
 
     /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function previewDreamParkQualifications(): array
+    {
+        return collect($this->dreamParkCandidates())
+            ->filter(fn (array $row): bool => $row['eligible'])
+            ->map(fn (array $row): array => [
+                ...$row,
+                'chance_count' => 1,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function publishDreamParkQualifications(): array
+    {
+        return $this->publishQualifications(
+            AwardLevels::DREAM_PARK,
+            $this->previewDreamParkQualifications(),
+            fn (): int => 1,
+        );
+    }
+
+    /**
      * @return array<int, array{type: string, group: string, label: string}>
      */
     private function talentTracks(): array
@@ -280,6 +340,7 @@ class AwardSettlementService
             ->map(fn (Work $work): array => [
                 ...$this->userColumns($work->user),
                 'track' => $label,
+                'work_id' => $work->id,
                 'work_title' => $work->title,
                 'vote_count' => $work->vote_count,
             ]);
@@ -302,9 +363,19 @@ class AwardSettlementService
         $count = 0;
 
         foreach ($rows as $row) {
+            $attributes = isset($row['work_id'])
+                ? ['prize_id' => $prize->id, 'work_id' => $row['work_id']]
+                : ['user_id' => $row['user_id'], 'prize_id' => $prize->id];
+
             LotteryRecord::query()->firstOrCreate(
-                ['user_id' => $row['user_id'], 'prize_id' => $prize->id],
-                ['source_type' => $prize->level, 'result_status' => LotteryResultStatus::Won->value, 'drawn_at' => now()]
+                $attributes,
+                [
+                    'user_id' => $row['user_id'],
+                    'work_id' => $row['work_id'] ?? null,
+                    'source_type' => $prize->level,
+                    'result_status' => LotteryResultStatus::Won->value,
+                    'drawn_at' => now(),
+                ]
             );
 
             $count++;
@@ -362,5 +433,35 @@ class AwardSettlementService
             'email' => $user?->email,
             'nickname' => $user?->nickname,
         ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @param callable(array<string, mixed>): int $chanceResolver
+     * @return array<string, mixed>
+     */
+    private function publishQualifications(string $sourceType, array $rows, callable $chanceResolver): array
+    {
+        return DB::transaction(function () use ($sourceType, $rows, $chanceResolver): array {
+            foreach ($rows as $row) {
+                $qualification = LotteryQualification::query()->firstOrNew([
+                    'user_id' => $row['user_id'],
+                    'source_type' => $sourceType,
+                ]);
+
+                if (! $qualification->exists) {
+                    $qualification->used_count = 0;
+                }
+
+                $qualification->qualified = true;
+                $qualification->chance_count = $chanceResolver($row);
+                $qualification->save();
+            }
+
+            return [
+                'count' => count($rows),
+                'rows' => $rows,
+            ];
+        });
     }
 }

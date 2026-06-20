@@ -8,6 +8,8 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class CurrentUserResolver
 {
+    private const LAST_USED_AT_THROTTLE_MINUTES = 5;
+
     public function resolve(Request $request): ?User
     {
         $token = $request->bearerToken();
@@ -22,7 +24,9 @@ class CurrentUserResolver
             return null;
         }
 
-        $apiToken->forceFill(['last_used_at' => now()])->save();
+        if ($apiToken->last_used_at === null || $apiToken->last_used_at->lte(now()->subMinutes(self::LAST_USED_AT_THROTTLE_MINUTES))) {
+            $apiToken->forceFill(['last_used_at' => now()])->save();
+        }
 
         $tokenable = $apiToken->tokenable;
 

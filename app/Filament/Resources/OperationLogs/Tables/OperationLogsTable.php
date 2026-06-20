@@ -18,7 +18,7 @@ class OperationLogsTable
         return $table
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('user'))
             ->columns([
-                TextColumn::make('user.username')
+                TextColumn::make('user.name')
                     ->label('操作人')
                     ->getStateUsing(fn ($record): string => $record->user ? AdminDisplay::preferredName($record->user) : '系统')
                     ->placeholder('系统')

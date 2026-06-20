@@ -7,6 +7,44 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## 2026 HPE 后台部署与性能配置
+
+后台是 Laravel 12 + Filament。生产环境不要使用 `php artisan serve`，应由 Nginx/Apache 指向 `public/`，通过 PHP-FPM 运行。
+
+### 生产环境 `.env`
+
+参考 `deploy/production.env.example` 创建服务器 `.env`，重点确认：
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+LOG_LEVEL=warning
+CACHE_STORE=redis
+SESSION_DRIVER=redis
+SESSION_STORE=redis
+QUEUE_CONNECTION=redis
+REDIS_CLIENT=phpredis
+```
+
+### 发布后优化命令
+
+在服务器项目目录执行：
+
+```bash
+bash deploy/optimize-production.sh
+```
+
+脚本会安装生产依赖、构建 Vite 资源、执行迁移、刷新 Laravel 缓存，并输出 `php artisan about`。输出中应看到：
+
+- `Environment` 为 `production`
+- `Debug Mode` 为 `OFF`
+- `Config`、`Routes`、`Events` 为 `CACHED`
+- `Session` 和 `Queue` 为 `redis`
+
+### 队列进程
+
+参考 `deploy/supervisor-queue-worker.conf.example` 配置 Supervisor，并把 `/path/to/backend` 替换成服务器真实路径。
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

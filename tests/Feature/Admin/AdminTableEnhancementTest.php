@@ -14,23 +14,19 @@ class AdminTableEnhancementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_admin_fields_are_fillable_and_preferred_name_uses_username(): void
+    public function test_user_admin_fields_are_fillable_and_preferred_name_uses_name(): void
     {
         $user = User::query()->create([
-            'name' => 'Legal Name',
-            'username' => 'Preferred Name',
+            'name' => 'Preferred Name',
             'email' => 'preferred@example.com',
             'employee_no' => 'E9001',
-            'work_city' => 'Shanghai',
-            'mail_code' => 'CN-SHA',
+            'address' => 'Shanghai',
             'work_address_code' => 'SHA-01',
             'password' => 'secret',
         ]);
 
-        $this->assertSame('Preferred Name', $user->username);
         $this->assertSame('Preferred Name', AdminDisplay::preferredName($user));
-        $this->assertSame('Shanghai', $user->work_city);
-        $this->assertSame('CN-SHA', $user->mail_code);
+        $this->assertSame('Shanghai', $user->address);
         $this->assertSame('SHA-01', $user->work_address_code);
     }
 
@@ -52,11 +48,12 @@ class AdminTableEnhancementTest extends TestCase
         $this->assertSame([ExportFormat::Xlsx], $exporter->getFormats());
     }
 
-    public function test_admin_employee_api_returns_preferred_name_and_work_fields(): void
+    public function test_admin_employee_api_returns_primary_employee_fields_and_work_address_code(): void
     {
         $admin = User::factory()->create([
             'role' => 'admin',
             'status' => 'active',
+            'nickname' => 'admin',
             'password' => 'unused',
         ]);
         $token = $this->postJson('/api/v1/auth/login', [
@@ -67,19 +64,16 @@ class AdminTableEnhancementTest extends TestCase
 
         $this->withHeader('Authorization', 'Bearer '.$token)
             ->postJson('/api/v1/admin/employees', [
-                'name' => 'Legal Name',
-                'username' => 'Preferred Name',
+                'name' => 'Preferred Name',
                 'employeeNo' => 'E9100',
                 'email' => 'employee-api@example.com',
-                'workCity' => 'Shanghai',
-                'mailCode' => 'CN-SHA',
+                'address' => 'Shanghai',
                 'workAddressCode' => 'SHA-01',
             ])
             ->assertOk()
-            ->assertJsonPath('data.username', 'Preferred Name')
             ->assertJsonPath('data.preferredName', 'Preferred Name')
-            ->assertJsonPath('data.workCity', 'Shanghai')
-            ->assertJsonPath('data.mailCode', 'CN-SHA')
+            ->assertJsonPath('data.name', 'Preferred Name')
+            ->assertJsonPath('data.address', 'Shanghai')
             ->assertJsonPath('data.workAddressCode', 'SHA-01');
     }
 }

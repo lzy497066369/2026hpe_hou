@@ -22,7 +22,11 @@
                     $metricLabel = '-';
 
                     if (isset($row['work_title'])) {
-                        $metricLabel = ($row['work_title'] ?: '-') . ' / ' . ($row['vote_count'] ?? 0) . ' 票';
+                        $metricLabel = $row['work_title'] ?: '-';
+
+                        if (array_key_exists('vote_count', $row)) {
+                            $metricLabel .= ' / ' . ($row['vote_count'] ?? 0) . ' 票';
+                        }
                     } elseif (isset($row['score'])) {
                         $metricLabel = ($row['score'] ?? 0) . ' 分 / ' . ($row['distance'] ?? 0) . ' 米';
                     } elseif (isset($row['weight'])) {

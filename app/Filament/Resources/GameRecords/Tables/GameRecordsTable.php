@@ -24,7 +24,7 @@ class GameRecordsTable
                 TextColumn::make('user_id')
                     ->label('内部用户编号')
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('user.username')
+                TextColumn::make('user.name')
                     ->label('Preferred Name')
                     ->getStateUsing(fn ($record): string => AdminDisplay::preferredName($record->user))
                     ->searchable(),

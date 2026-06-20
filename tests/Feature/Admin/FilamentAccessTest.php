@@ -41,6 +41,8 @@ class FilamentAccessTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/award-settlement')
             ->assertOk()
-            ->assertSee('奖项结算管理');
+            ->assertSee('奖项结算管理')
+            ->assertSee('发布抽奖资格')
+            ->assertSee('预览并发布');
     }
 }

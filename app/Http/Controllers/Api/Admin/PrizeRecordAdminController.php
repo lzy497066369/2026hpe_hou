@@ -17,7 +17,7 @@ class PrizeRecordAdminController extends Controller
         $this->requireAdmin($request, $resolver);
 
         return ApiResponse::success(
-            LotteryRecord::query()->with(['prize', 'prizeClaim'])->orderByDesc('created_at')->paginate((int) $request->query('pageSize', 20))
+            LotteryRecord::query()->with(['prize', 'prizeClaim', 'work'])->orderByDesc('created_at')->paginate((int) $request->query('pageSize', 20))
         );
     }
 
@@ -28,9 +28,10 @@ class PrizeRecordAdminController extends Controller
         $record->fill($request->validate([
             'result_status' => ['sometimes', 'in:pending,won,lost'],
             'prize_id' => ['sometimes', 'nullable', 'integer', 'exists:prizes,id'],
+            'work_id' => ['sometimes', 'nullable', 'integer', 'exists:works,id'],
         ]))->save();
 
-        return ApiResponse::success($record->fresh('prize'));
+        return ApiResponse::success($record->fresh(['prize', 'work']));
     }
 
     public function calculateFinalAwards(Request $request, CurrentUserResolver $resolver, FinalAwardService $service): JsonResponse

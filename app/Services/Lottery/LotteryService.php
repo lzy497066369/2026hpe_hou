@@ -10,7 +10,6 @@ use App\Models\PrizeClaim;
 use App\Models\User;
 use App\Services\Support\AtomicLock;
 use App\Support\AwardLevels;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 class LotteryService
@@ -25,6 +24,7 @@ class LotteryService
     public function qualification(User $user, ?string $sourceType = null): array
     {
         $sourceType = $this->normalizeSourceType($sourceType);
+        $reason = null;
 
         $query = LotteryQualification::query()
             ->where('user_id', $user->id)
@@ -37,13 +37,25 @@ class LotteryService
         $qualification = $query->first();
 
         if ($qualification === null) {
+            $reason = $this->qualificationMissingReason($sourceType);
+
             return [
                 'sourceType' => $sourceType,
                 'qualified' => false,
                 'chanceCount' => 0,
                 'usedCount' => 0,
-                'reason' => 'lottery_not_open',
+                'reason' => $reason,
             ];
+        }
+
+        if ($qualification->qualified && $qualification->used_count >= $qualification->chance_count) {
+            $reason = 'chance_used_up';
+        }
+
+        if (! $qualification->qualified) {
+            $reason = $qualification->used_count >= $qualification->chance_count
+                ? 'chance_used_up'
+                : 'qualification_not_published';
         }
 
         return [
@@ -51,7 +63,7 @@ class LotteryService
             'qualified' => $qualification->qualified,
             'chanceCount' => $qualification->chance_count,
             'usedCount' => $qualification->used_count,
-            'reason' => $qualification->qualified ? null : 'chance_used_up',
+            'reason' => $reason,
         ];
     }
 
@@ -61,7 +73,6 @@ class LotteryService
     public function draw(User $user, ?string $sourceType = null): array
     {
         $sourceType = $this->normalizeSourceType($sourceType) ?? AwardLevels::FRAGRANCE_VOTE;
-        $this->ensureOfficialPoolIsOpen($sourceType);
 
         $record = $this->lock->run("lottery:user:{$user->id}:{$sourceType}", function () use ($user, $sourceType): LotteryRecord {
             return DB::transaction(function () use ($user, $sourceType): LotteryRecord {
@@ -158,12 +169,31 @@ class LotteryService
      */
     public function myPrizes(User $user): array
     {
+        $hasParticipationAward = false;
+
         return LotteryRecord::query()
             ->with(['prize', 'prizeClaim'])
             ->where('user_id', $user->id)
             ->whereNotNull('prize_id')
             ->orderByDesc('created_at')
             ->get()
+            ->filter(function (LotteryRecord $record) use (&$hasParticipationAward): bool {
+                $isParticipationAward = $record->source_type === AwardLevels::PARTICIPATION
+                    || $record->prize?->level === AwardLevels::PARTICIPATION;
+
+                if (! $isParticipationAward) {
+                    return true;
+                }
+
+                if ($hasParticipationAward) {
+                    return false;
+                }
+
+                $hasParticipationAward = true;
+
+                return true;
+            })
+            ->values()
             ->map(function (LotteryRecord $record): array {
                 return [
                     'id' => (string) $record->id,
@@ -231,5 +261,10 @@ class LotteryService
         $openAt = CarbonImmutable::parse('2026-07-10 09:00:00', 'Asia/Shanghai');
 
         abort_if(now('Asia/Shanghai')->lt($openAt), 422, '抽奖尚未开始');
+    }
+
+    private function qualificationMissingReason(?string $sourceType): string
+    {
+        return 'qualification_not_published';
     }
 }

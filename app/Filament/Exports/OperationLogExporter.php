@@ -17,7 +17,7 @@ class OperationLogExporter extends Exporter
     public static function getColumns(): array
     {
         return [
-            ExportColumn::make('user.username')->label('操作人')
+            ExportColumn::make('user.name')->label('操作人')
                 ->formatStateUsing(fn (OperationLog $record): string => $record->user ? AdminDisplay::preferredName($record->user) : '系统'),
             ExportColumn::make('module')->label('模块'),
             ExportColumn::make('action')->label('动作'),

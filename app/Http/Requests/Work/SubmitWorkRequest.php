@@ -23,11 +23,11 @@ class SubmitWorkRequest extends FormRequest
             'type' => ['required', Rule::enum(WorkType::class)],
             'group' => ['required', Rule::enum(WorkGroup::class)],
             'title' => ['required', 'string', 'max:100'],
-            'description' => ['nullable', 'string', 'max:1000'],
+            'description' => ['nullable', 'string', 'max:200'],
             'coverFileId' => ['nullable', 'integer'],
             'contentFileId' => ['required', 'integer'],
             'toolName' => ['nullable', 'string', 'max:100'],
-            'promptText' => ['nullable', 'string', 'max:2000'],
+            'promptText' => ['nullable', 'string', 'max:200'],
         ];
     }
 }

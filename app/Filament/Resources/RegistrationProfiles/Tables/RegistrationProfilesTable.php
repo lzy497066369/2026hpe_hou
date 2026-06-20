@@ -27,7 +27,7 @@ class RegistrationProfilesTable
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('user'))
             ->defaultSort('submitted_at', 'desc')
             ->columns([
-                TextColumn::make('user.username')
+                TextColumn::make('user.name')
                     ->label('Preferred Name')
                     ->getStateUsing(fn (RegistrationProfile $record): string => AdminDisplay::preferredName($record->user))
                     ->searchable(),

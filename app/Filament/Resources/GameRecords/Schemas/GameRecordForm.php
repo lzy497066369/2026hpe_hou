@@ -17,7 +17,6 @@ class GameRecordForm
                     ->label('员工')
                     ->relationship('user', 'name')
                     ->searchable(['name', 'employee_no', 'email'])
-                    ->preload()
                     ->required()
                     ->disabled(fn (string $operation): bool => $operation === 'edit'),
                 TextInput::make('distance')

@@ -13,7 +13,7 @@ class RegistrationProfileInfolist
     {
         return $schema
             ->components([
-                TextEntry::make('user.username')
+                TextEntry::make('user.name')
                     ->label('Preferred Name')
                     ->getStateUsing(fn ($record): string => AdminDisplay::preferredName($record->user)),
                 TextEntry::make('user.email')

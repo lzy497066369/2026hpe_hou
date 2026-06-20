@@ -17,7 +17,7 @@ class RegistrationProfileExporter extends Exporter
     public static function getColumns(): array
     {
         return [
-            ExportColumn::make('user.username')->label('Preferred Name')
+            ExportColumn::make('user.name')->label('Preferred Name')
                 ->formatStateUsing(fn (RegistrationProfile $record): string => AdminDisplay::preferredName($record->user)),
             ExportColumn::make('user.email')->label('邮箱'),
             ExportColumn::make('employee_no')->label('员工号'),

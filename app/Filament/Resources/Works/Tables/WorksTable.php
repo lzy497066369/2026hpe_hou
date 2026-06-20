@@ -36,7 +36,7 @@ class WorksTable
                 ViewColumn::make('contentFile.url')
                     ->label('作品内容')
                     ->view('filament.tables.columns.work-media-preview'),
-                TextColumn::make('user.username')
+                TextColumn::make('user.name')
                     ->label('Preferred Name')
                     ->getStateUsing(fn (Work $record): string => AdminDisplay::preferredName($record->user))
                     ->searchable(),

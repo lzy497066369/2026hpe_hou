@@ -18,9 +18,9 @@ class UpdateWorkRequest extends FormRequest
     {
         return [
             'title' => ['sometimes', 'required', 'string', 'max:100'],
-            'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:200'],
             'toolName' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'promptText' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'promptText' => ['sometimes', 'nullable', 'string', 'max:200'],
         ];
     }
 }

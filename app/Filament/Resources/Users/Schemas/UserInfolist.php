@@ -14,8 +14,6 @@ class UserInfolist
         return $schema
             ->components([
                 TextEntry::make('name')
-                    ->label('姓名'),
-                TextEntry::make('username')
                     ->label('Preferred Name')
                     ->getStateUsing(fn ($record): string => AdminDisplay::preferredName($record)),
                 TextEntry::make('email')
@@ -29,13 +27,7 @@ class UserInfolist
                     ->label('电话')
                     ->placeholder('-'),
                 TextEntry::make('address')
-                    ->label('地址')
-                    ->placeholder('-'),
-                TextEntry::make('work_city')
                     ->label('工作城市')
-                    ->placeholder('-'),
-                TextEntry::make('mail_code')
-                    ->label('邮箱代码')
                     ->placeholder('-'),
                 TextEntry::make('work_address_code')
                     ->label('工作地址代码')

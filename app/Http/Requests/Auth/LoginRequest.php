@@ -19,7 +19,7 @@ class LoginRequest extends FormRequest
         return [
             'employeeNo' => ['required', 'string', 'max:50'],
             'email' => ['required', 'email', 'max:255'],
-            'nickname' => ['nullable', 'string', 'max:100'],
+            'nickname' => ['nullable', 'string', 'max:10'],
         ];
     }
 }

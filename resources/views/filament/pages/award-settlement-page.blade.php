@@ -38,9 +38,12 @@
                 <div class="award-settlement-action-card__content">
                     <span class="award-settlement-action-card__badge">抽奖奖项</span>
                     <h2 class="award-settlement-action-card__title">手有余香奖</h2>
-                    <p class="award-settlement-action-card__meta">查看当前获奖人员；权重列表用于核对抽奖池与未满足条件原因。</p>
+                    <p class="award-settlement-action-card__meta">需后台手动发布抽奖资格；权重列表用于核对抽奖池与未满足条件原因。</p>
                 </div>
                 <div class="award-settlement-action-card__buttons">
+                    <button type="button" class="award-settlement-action-card__button" wire:click="mountAction('publishFragranceQualifications')">
+                        预览并发布
+                    </button>
                     <button type="button" class="award-settlement-action-card__button" wire:click="mountAction('fragranceWinners')">
                         查看获奖名单
                     </button>
@@ -54,9 +57,12 @@
                 <div class="award-settlement-action-card__content">
                     <span class="award-settlement-action-card__badge">抽奖奖项</span>
                     <h2 class="award-settlement-action-card__title">逐梦乐园奖</h2>
-                    <p class="award-settlement-action-card__meta">查看当前获奖人员；可抽奖名单用于核对作品、游戏、投票条件。</p>
+                    <p class="award-settlement-action-card__meta">需后台手动发布抽奖资格；可抽奖名单用于核对作品、游戏、投票条件。</p>
                 </div>
                 <div class="award-settlement-action-card__buttons">
+                    <button type="button" class="award-settlement-action-card__button" wire:click="mountAction('publishDreamParkQualifications')">
+                        预览并发布
+                    </button>
                     <button type="button" class="award-settlement-action-card__button" wire:click="mountAction('dreamParkWinners')">
                         查看获奖名单
                     </button>
@@ -85,12 +91,12 @@
                 <div class="award-settlement-card__kicker">抽奖奖项</div>
                 <h2>手有余香奖</h2>
                 <p>
-                    可查看当前获奖人员，也可查看所有用户的投票权重列表。未满足抽奖条件的用户会在名单卡片中显示原因。
+                    需由后台手动执行发布抽奖资格后，前台用户才可参与抽奖。发布前可先查看投票权重列表与未满足条件原因。
                 </p>
                 <div class="award-settlement-card__tags" aria-label="手有余香奖操作">
+                    <span>发布抽奖资格</span>
                     <span>获奖名单</span>
                     <span>权重列表</span>
-                    <span>原因标注</span>
                 </div>
             </section>
 
@@ -98,9 +104,10 @@
                 <div class="award-settlement-card__kicker">抽奖奖项</div>
                 <h2>逐梦乐园奖</h2>
                 <p>
-                    可查看当前获奖人员，也可查看同时具备发布作品、游戏记录、投票记录的可抽奖名单。
+                    需由后台手动执行发布抽奖资格后，前台用户才可参与抽奖。发布前可先查看满足作品、游戏、投票条件的名单。
                 </p>
                 <div class="award-settlement-card__tags" aria-label="逐梦乐园奖条件">
+                    <span>发布抽奖资格</span>
                     <span>已发布作品</span>
                     <span>有游戏记录</span>
                     <span>有投票记录</span>

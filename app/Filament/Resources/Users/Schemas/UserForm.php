@@ -14,10 +14,8 @@ class UserForm
         return $schema
             ->components([
                 TextInput::make('name')
-                    ->label('姓名')
+                    ->label('Preferred Name')
                     ->required(),
-                TextInput::make('username')
-                    ->label('Preferred Name'),
                 TextInput::make('email')
                     ->label('邮箱')
                     ->email()
@@ -31,12 +29,8 @@ class UserForm
                     ->label('电话')
                     ->tel(),
                 TextInput::make('address')
-                    ->label('地址')
+                    ->label('工作城市')
                     ->columnSpanFull(),
-                TextInput::make('work_city')
-                    ->label('工作城市'),
-                TextInput::make('mail_code')
-                    ->label('邮箱代码'),
                 TextInput::make('work_address_code')
                     ->label('工作地址代码'),
                 TextInput::make('avatar')

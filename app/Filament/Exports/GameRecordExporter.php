@@ -18,7 +18,7 @@ class GameRecordExporter extends Exporter
     {
         return [
             ExportColumn::make('user_id')->label('内部用户编号'),
-            ExportColumn::make('user.username')->label('Preferred Name')
+            ExportColumn::make('user.name')->label('Preferred Name')
                 ->formatStateUsing(fn (GameRecord $record): string => AdminDisplay::preferredName($record->user)),
             ExportColumn::make('user.employee_no')->label('员工号'),
             ExportColumn::make('user.nickname')->label('昵称'),

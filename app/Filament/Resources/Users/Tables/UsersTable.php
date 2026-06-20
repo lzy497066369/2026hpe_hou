@@ -33,14 +33,10 @@ class UsersTable
                         ->where('audit_status', RegistrationAuditStatus::Rejected->value),
                 ]))
             ->columns([
-                TextColumn::make('username')
+                TextColumn::make('name')
                     ->label('Preferred Name')
                     ->getStateUsing(fn ($record): string => AdminDisplay::preferredName($record))
                     ->searchable(),
-                TextColumn::make('name')
-                    ->label('姓名')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('email')
                     ->label('邮箱')
                     ->searchable(),
@@ -54,14 +50,8 @@ class UsersTable
                     ->label('电话')
                     ->searchable(),
                 TextColumn::make('address')
-                    ->label('地址')
-                    ->limit(24)
-                    ->searchable(),
-                TextColumn::make('work_city')
                     ->label('工作城市')
-                    ->searchable(),
-                TextColumn::make('mail_code')
-                    ->label('邮箱代码')
+                    ->limit(24)
                     ->searchable(),
                 TextColumn::make('work_address_code')
                     ->label('工作地址代码')

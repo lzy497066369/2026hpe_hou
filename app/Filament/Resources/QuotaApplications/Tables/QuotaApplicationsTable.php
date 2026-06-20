@@ -27,7 +27,7 @@ class QuotaApplicationsTable
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('user'))
             ->defaultSort('submitted_at', 'desc')
             ->columns([
-                TextColumn::make('user.username')
+                TextColumn::make('user.name')
                     ->label('Preferred Name')
                     ->getStateUsing(fn (QuotaApplication $record): string => AdminDisplay::preferredName($record->user))
                     ->searchable(),

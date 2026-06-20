@@ -18,6 +18,7 @@ class WorkService
         'image/jpeg',
         'image/png',
         'image/webp',
+        'video/mp4',
         'audio/mpeg',
         'audio/mp3',
     ];
@@ -349,7 +350,7 @@ class WorkService
 
         $message = $workType === 'ai'
             ? 'AI 创作仅支持图片、视频或音频文件'
-            : '传统创作仅支持图片或音频文件';
+            : '传统创作仅支持图片、视频或音频文件';
 
         abort_if(! in_array($mimeType, $allowedMimeTypes, true), 422, $message);
     }

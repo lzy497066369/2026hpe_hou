@@ -99,7 +99,7 @@ class AdminDisplay
 
     public static function preferredName(?User $user): string
     {
-        return $user?->username ?: ($user?->name ?: '未填写');
+        return $user?->name ?: '未填写';
     }
 
     public static function url(?string $url): ?string

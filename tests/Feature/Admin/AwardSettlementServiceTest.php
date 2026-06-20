@@ -7,6 +7,7 @@ use App\Enums\WorkGroup;
 use App\Enums\WorkPublishStatus;
 use App\Enums\WorkType;
 use App\Models\GameRecord;
+use App\Models\LotteryQualification;
 use App\Models\LotteryRecord;
 use App\Models\Prize;
 use App\Models\User;
@@ -51,8 +52,13 @@ class AwardSettlementServiceTest extends TestCase
         $result = $service->awardTalentAwards();
 
         $this->assertCount(64, $preview);
+        $this->assertNotNull($preview[0]['work_id'] ?? null);
         $this->assertSame(64, $result['count']);
         $this->assertDatabaseCount('lottery_records', 64);
+        $this->assertDatabaseHas('lottery_records', [
+            'user_id' => $preview[0]['user_id'],
+            'work_id' => $preview[0]['work_id'],
+        ]);
         $this->assertDatabaseMissing('lottery_records', [
             'user_id' => $hiddenUser->id,
         ]);
@@ -108,7 +114,8 @@ class AwardSettlementServiceTest extends TestCase
         $talentWinner = User::factory()->create(['employee_no' => 'E2005']);
         $gameWinner = User::factory()->create(['employee_no' => 'E2006']);
 
-        $this->createWork($eligible);
+        $eligibleFirstWork = $this->createWork($eligible, voteCount: 12);
+        $eligibleSecondWork = $this->createWork($eligible, voteCount: 11);
         $this->createGameRecord($eligible);
         $this->createWork($onlyWork);
         $this->createGameRecord($onlyGame);
@@ -138,10 +145,17 @@ class AwardSettlementServiceTest extends TestCase
         $preview = $service->previewParticipationAwards();
         $result = $service->awardParticipationAwards();
 
-        $this->assertSame([$eligible->id], array_column($preview, 'user_id'));
-        $this->assertSame(1, $result['count']);
+        $this->assertSame([$eligibleFirstWork->id, $eligibleSecondWork->id], array_column($preview, 'work_id'));
+        $this->assertSame([$eligible->id, $eligible->id], array_column($preview, 'user_id'));
+        $this->assertSame(2, $result['count']);
         $this->assertDatabaseHas('lottery_records', [
             'user_id' => $eligible->id,
+            'work_id' => $eligibleFirstWork->id,
+            'result_status' => LotteryResultStatus::Won->value,
+        ]);
+        $this->assertDatabaseHas('lottery_records', [
+            'user_id' => $eligible->id,
+            'work_id' => $eligibleSecondWork->id,
             'result_status' => LotteryResultStatus::Won->value,
         ]);
     }
@@ -203,6 +217,100 @@ class AwardSettlementServiceTest extends TestCase
         $this->assertSame('未发布作品', $candidates[$missingWork->id]['reason']);
     }
 
+    public function test_publish_fragrance_qualifications_creates_weighted_records_and_is_idempotent(): void
+    {
+        $eligible = User::factory()->create(['employee_no' => 'E5001']);
+        $noVote = User::factory()->create(['employee_no' => 'E5002']);
+        $alreadyWon = User::factory()->create(['employee_no' => 'E5003']);
+        $target = User::factory()->create();
+        $targetWork = $this->createWork($target);
+
+        $this->createVotes($eligible, $targetWork, 3);
+        $this->createVotes($alreadyWon, $targetWork, 1);
+        $this->createWonRecord($alreadyWon, Prize::query()->create([
+            'name' => '手有余香奖',
+            'level' => AwardLevels::FRAGRANCE_VOTE,
+            'stock' => 10,
+            'status' => 'active',
+        ]));
+
+        $service = app(AwardSettlementService::class);
+
+        $first = $service->publishFragranceQualifications();
+        $second = $service->publishFragranceQualifications();
+
+        $this->assertSame(1, $first['count']);
+        $this->assertSame(1, $second['count']);
+        $this->assertDatabaseCount('lottery_qualifications', 1);
+        $this->assertDatabaseHas('lottery_qualifications', [
+            'user_id' => $eligible->id,
+            'source_type' => AwardLevels::FRAGRANCE_VOTE,
+            'qualified' => true,
+            'chance_count' => 3,
+            'used_count' => 0,
+        ]);
+        $this->assertDatabaseMissing('lottery_qualifications', [
+            'user_id' => $noVote->id,
+            'source_type' => AwardLevels::FRAGRANCE_VOTE,
+        ]);
+        $this->assertDatabaseMissing('lottery_qualifications', [
+            'user_id' => $alreadyWon->id,
+            'source_type' => AwardLevels::FRAGRANCE_VOTE,
+        ]);
+    }
+
+    public function test_publish_dream_park_qualifications_only_includes_eligible_users(): void
+    {
+        $eligible = User::factory()->create(['employee_no' => 'E6001']);
+        $topWinner = User::factory()->create(['employee_no' => 'E6002']);
+        $missingWork = User::factory()->create(['employee_no' => 'E6003']);
+        $alreadyWon = User::factory()->create(['employee_no' => 'E6004']);
+        $target = User::factory()->create();
+        $targetWork = $this->createWork($target);
+
+        foreach ([$eligible, $topWinner, $alreadyWon] as $user) {
+            $this->createWork($user);
+            $this->createGameRecord($user);
+            $this->createVotes($user, $targetWork, 1);
+        }
+
+        $this->createGameRecord($missingWork);
+        $this->createVotes($missingWork, $targetWork, 1);
+
+        $this->createWonRecord($topWinner, Prize::query()->create([
+            'name' => '才艺大赛奖',
+            'level' => AwardLevels::TALENT_TOP,
+            'stock' => 60,
+            'status' => 'active',
+        ]));
+        $this->createWonRecord($alreadyWon, Prize::query()->create([
+            'name' => '逐梦乐园奖',
+            'level' => AwardLevels::DREAM_PARK,
+            'stock' => 3,
+            'status' => 'active',
+        ]));
+
+        $result = app(AwardSettlementService::class)->publishDreamParkQualifications();
+
+        $this->assertSame(2, $result['count']);
+        $this->assertDatabaseCount('lottery_qualifications', 2);
+        foreach ([$eligible, $topWinner] as $user) {
+            $this->assertDatabaseHas('lottery_qualifications', [
+                'user_id' => $user->id,
+                'source_type' => AwardLevels::DREAM_PARK,
+                'qualified' => true,
+                'chance_count' => 1,
+                'used_count' => 0,
+            ]);
+        }
+        foreach ([$missingWork, $alreadyWon] as $user) {
+            $this->assertDatabaseMissing('lottery_qualifications', [
+                'user_id' => $user->id,
+                'source_type' => AwardLevels::DREAM_PARK,
+            ]);
+        }
+    }
+
     private function createWork(
         User $user,
         string $type = WorkType::Traditional->value,
@@ -249,6 +357,7 @@ class AwardSettlementServiceTest extends TestCase
         return LotteryRecord::query()->create([
             'user_id' => $user->id,
             'prize_id' => $prize->id,
+            'source_type' => $prize->level,
             'result_status' => LotteryResultStatus::Won->value,
             'drawn_at' => now(),
         ]);

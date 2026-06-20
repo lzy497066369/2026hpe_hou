@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Enums\LotteryResultStatus;
 use App\Models\LotteryQualification;
+use App\Models\LotteryRecord;
 use App\Models\Prize;
 use App\Models\User;
 use App\Support\AwardLevels;
@@ -14,19 +15,16 @@ class LotteryPoolTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_lottery_draw_requires_open_time_for_official_pools(): void
+    public function test_lottery_draw_requires_published_qualification_for_official_pools(): void
     {
         $user = User::factory()->create();
-        $this->createQualification($user, AwardLevels::FRAGRANCE_VOTE);
-
-        $this->travelTo(now('Asia/Shanghai')->setDate(2026, 7, 10)->setTime(8, 59, 59));
 
         $this->withHeaders($this->authHeaders($user))
             ->postJson('/api/v1/lottery/draw', [
                 'sourceType' => AwardLevels::FRAGRANCE_VOTE,
             ])
             ->assertStatus(422)
-            ->assertJsonFragment(['message' => '抽奖尚未开始']);
+            ->assertJsonFragment(['message' => '抽奖次数不足']);
     }
 
     public function test_lottery_draw_uses_requested_pool_and_records_source_type(): void
@@ -119,6 +117,70 @@ class LotteryPoolTest extends TestCase
             ->assertJsonPath('data.usedCount', 1);
     }
 
+    public function test_qualification_returns_not_published_when_no_record_exists(): void
+    {
+        $user = User::factory()->create();
+
+        $this->withHeaders($this->authHeaders($user))
+            ->getJson('/api/v1/lottery/qualification?sourceType='.AwardLevels::FRAGRANCE_VOTE)
+            ->assertOk()
+            ->assertJsonPath('data.sourceType', AwardLevels::FRAGRANCE_VOTE)
+            ->assertJsonPath('data.qualified', false)
+            ->assertJsonPath('data.reason', 'qualification_not_published');
+    }
+
+    public function test_qualification_returns_chance_used_up_when_all_chances_are_consumed(): void
+    {
+        $user = User::factory()->create();
+        $this->createQualification($user, AwardLevels::FRAGRANCE_VOTE, 1, 1);
+
+        $this->withHeaders($this->authHeaders($user))
+            ->getJson('/api/v1/lottery/qualification?sourceType='.AwardLevels::FRAGRANCE_VOTE)
+            ->assertOk()
+            ->assertJsonPath('data.sourceType', AwardLevels::FRAGRANCE_VOTE)
+            ->assertJsonPath('data.qualified', true)
+            ->assertJsonPath('data.reason', 'chance_used_up');
+    }
+
+    public function test_my_prizes_deduplicates_participation_awards_for_client_display(): void
+    {
+        $user = User::factory()->create();
+        $participationPrize = $this->createPrize(AwardLevels::PARTICIPATION, 0);
+        $gamePrize = $this->createPrize(AwardLevels::GAME_TOP, 10);
+
+        LotteryRecord::query()->create([
+            'user_id' => $user->id,
+            'prize_id' => $participationPrize->id,
+            'source_type' => AwardLevels::PARTICIPATION,
+            'result_status' => LotteryResultStatus::Won->value,
+            'drawn_at' => now(),
+        ]);
+        LotteryRecord::query()->create([
+            'user_id' => $user->id,
+            'prize_id' => $participationPrize->id,
+            'source_type' => AwardLevels::PARTICIPATION,
+            'result_status' => LotteryResultStatus::Won->value,
+            'drawn_at' => now()->addMinute(),
+        ]);
+        LotteryRecord::query()->create([
+            'user_id' => $user->id,
+            'prize_id' => $gamePrize->id,
+            'source_type' => AwardLevels::GAME_TOP,
+            'result_status' => LotteryResultStatus::Won->value,
+            'drawn_at' => now(),
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders($user))
+            ->getJson('/api/v1/lottery/prizes/mine')
+            ->assertOk();
+
+        $levels = collect($response->json('data'))->pluck('prize.level')->all();
+
+        $this->assertCount(2, $levels);
+        $this->assertSame(1, collect($levels)->filter(fn (string $level): bool => $level === AwardLevels::PARTICIPATION)->count());
+        $this->assertContains(AwardLevels::GAME_TOP, $levels);
+    }
+
     private function createQualification(User $user, string $sourceType, int $chanceCount = 1, int $usedCount = 0): void
     {
         LotteryQualification::query()->create([
@@ -148,7 +210,7 @@ class LotteryPoolTest extends TestCase
         $token = $this->postJson('/api/v1/auth/login', [
             'employeeNo' => $user->employee_no,
             'email' => $user->email,
-            'nickname' => $user->nickname,
+            'nickname' => 'lottery',
         ])->json('data.token');
 
         return ['Authorization' => 'Bearer '.$token];

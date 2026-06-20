@@ -22,7 +22,7 @@ class WorkExporter extends Exporter
             ExportColumn::make('contentFile.url')->label('作品内容链接')
                 ->formatStateUsing(fn (Work $record): ?string => AdminDisplay::fileUrl($record->contentFile)),
             ExportColumn::make('contentFile.mime_type')->label('作品内容类型'),
-            ExportColumn::make('user.username')->label('Preferred Name')
+            ExportColumn::make('user.name')->label('Preferred Name')
                 ->formatStateUsing(fn (Work $record): string => AdminDisplay::preferredName($record->user)),
             ExportColumn::make('user.employee_no')->label('员工号'),
             ExportColumn::make('user.email')->label('邮箱'),
