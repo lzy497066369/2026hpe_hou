@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Filament\Exports\LotteryRecordExporter;
 use App\Filament\Exports\UsersExporter;
 use App\Filament\Exports\WorkExporter;
+use App\Providers\Filament\AdminPanelProvider;
 use App\Filament\Widgets\AdminOverviewStats;
 use App\Models\UploadedFile;
 use App\Models\User;
@@ -64,6 +65,13 @@ class AdminTableEnhancementTest extends TestCase
         $exporter = new UsersExporter(new \Filament\Actions\Exports\Models\Export, [], []);
 
         $this->assertSame('sync', $exporter->getJobConnection());
+    }
+
+    public function test_admin_panel_disables_database_notifications(): void
+    {
+        $source = file_get_contents((string) (new \ReflectionClass(AdminPanelProvider::class))->getFileName());
+
+        $this->assertStringNotContainsString('databaseNotifications', $source);
     }
 
     public function test_work_exporter_contains_complete_identifier_columns(): void
