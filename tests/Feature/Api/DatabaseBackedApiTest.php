@@ -360,6 +360,47 @@ class DatabaseBackedApiTest extends TestCase
             ->assertJsonPath('data.contentMimeType', 'audio/mpeg');
     }
 
+    public function test_work_submit_accepts_audio_mime_type_variants(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Audio Variant User',
+            'email' => 'audio-variant@example.com',
+            'employee_no' => 'E0104',
+            'nickname' => 'aud-var',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $content = UploadedFile::query()->create([
+            'user_id' => $user->id,
+            'disk' => 'local',
+            'path' => 'uploads/work.m4a',
+            'url' => 'https://example.com/work.m4a',
+            'mime_type' => 'audio/mp4',
+            'size' => 1024,
+            'checksum' => 'checksum-audio-variant',
+            'usage_type' => UploadUsageType::WorkContent->value,
+            'is_committed' => false,
+        ]);
+
+        $token = $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => $user->employee_no,
+            'email' => $user->email,
+            'nickname' => $user->nickname,
+        ])->json('data.token');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/api/v1/works/submit', [
+                'type' => WorkType::Traditional->value,
+                'group' => WorkGroup::Employee->value,
+                'title' => 'Audio Variant',
+                'description' => 'Audio work',
+                'contentFileId' => (string) $content->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.contentMimeType', 'audio/mp4');
+    }
+
     public function test_published_works_can_only_be_searched_by_list_serial_number(): void
     {
         $author = User::query()->create([

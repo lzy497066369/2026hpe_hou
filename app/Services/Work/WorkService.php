@@ -14,22 +14,10 @@ use Illuminate\Support\Facades\DB;
 
 class WorkService
 {
-    private const TRADITIONAL_CONTENT_MIME_TYPES = [
-        'image/jpeg',
-        'image/png',
-        'image/webp',
-        'video/mp4',
-        'audio/mpeg',
-        'audio/mp3',
-    ];
-
-    private const AI_CONTENT_MIME_TYPES = [
-        'image/jpeg',
-        'image/png',
-        'image/webp',
-        'video/mp4',
-        'audio/mpeg',
-        'audio/mp3',
+    private const CONTENT_MIME_TYPE_PREFIXES = [
+        'image/',
+        'video/',
+        'audio/',
     ];
 
     /**
@@ -344,14 +332,21 @@ class WorkService
 
     private function ensureContentMimeTypeIsAllowed(string $workType, string $mimeType): void
     {
-        $allowedMimeTypes = $workType === 'ai'
-            ? self::AI_CONTENT_MIME_TYPES
-            : self::TRADITIONAL_CONTENT_MIME_TYPES;
-
         $message = $workType === 'ai'
             ? 'AI 创作仅支持图片、视频或音频文件'
             : '传统创作仅支持图片、视频或音频文件';
 
-        abort_if(! in_array($mimeType, $allowedMimeTypes, true), 422, $message);
+        abort_if(! $this->isSupportedContentMimeType($mimeType), 422, $message);
+    }
+
+    private function isSupportedContentMimeType(string $mimeType): bool
+    {
+        foreach (self::CONTENT_MIME_TYPE_PREFIXES as $prefix) {
+            if (str_starts_with($mimeType, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
