@@ -7,6 +7,10 @@ use App\Models\LotteryQualification;
 use App\Models\LotteryRecord;
 use App\Models\Prize;
 use App\Models\User;
+use App\Models\Work;
+use App\Models\WorkVote;
+use App\Services\Lottery\LotteryService;
+use App\Services\Support\AtomicLock;
 use App\Support\AwardLevels;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -52,11 +56,75 @@ class LotteryPoolTest extends TestCase
         ]);
     }
 
+    public function test_dream_park_draw_loses_when_probability_pick_exceeds_remaining_stock(): void
+    {
+        $currentUser = User::factory()->create();
+        $this->createQualification($currentUser, AwardLevels::DREAM_PARK);
+        User::factory()
+            ->count(9)
+            ->create()
+            ->each(fn (User $user) => $this->createQualification($user, AwardLevels::DREAM_PARK));
+        $prize = $this->createPrize(AwardLevels::DREAM_PARK, 3);
+
+        $service = new class(app(AtomicLock::class)) extends LotteryService
+        {
+            protected function randomWeight(int $max): int
+            {
+                return 4;
+            }
+        };
+
+        $result = $service->draw($currentUser, AwardLevels::DREAM_PARK);
+
+        $this->assertSame(LotteryResultStatus::Lost->value, $result['resultStatus']);
+        $this->assertNull($result['prize']);
+        $this->assertDatabaseHas('prizes', [
+            'id' => $prize->id,
+            'stock' => 3,
+        ]);
+        $this->assertDatabaseHas('lottery_records', [
+            'user_id' => $currentUser->id,
+            'source_type' => AwardLevels::DREAM_PARK,
+            'result_status' => LotteryResultStatus::Lost->value,
+        ]);
+    }
+
+    public function test_dream_park_draw_wins_when_probability_pick_is_within_remaining_stock(): void
+    {
+        $currentUser = User::factory()->create();
+        $this->createQualification($currentUser, AwardLevels::DREAM_PARK);
+        User::factory()
+            ->count(9)
+            ->create()
+            ->each(fn (User $user) => $this->createQualification($user, AwardLevels::DREAM_PARK));
+        $prize = $this->createPrize(AwardLevels::DREAM_PARK, 3);
+
+        $service = new class(app(AtomicLock::class)) extends LotteryService
+        {
+            protected function randomWeight(int $max): int
+            {
+                return 3;
+            }
+        };
+
+        $result = $service->draw($currentUser, AwardLevels::DREAM_PARK);
+
+        $this->assertSame(LotteryResultStatus::Won->value, $result['resultStatus']);
+        $this->assertSame((string) $prize->id, $result['prize']['id']);
+        $this->assertDatabaseHas('prizes', [
+            'id' => $prize->id,
+            'stock' => 2,
+        ]);
+    }
+
     public function test_user_cannot_win_same_lottery_pool_twice(): void
     {
         $user = User::factory()->create();
+        $target = User::factory()->create();
+        $targetWork = $this->createWork($target);
         $this->createQualification($user, AwardLevels::FRAGRANCE_VOTE, 2);
         $this->createPrize(AwardLevels::FRAGRANCE_VOTE, 10);
+        $this->createVotes($user, $targetWork, 2);
 
         $this->travelTo(now('Asia/Shanghai')->setDate(2026, 7, 10)->setTime(9, 0));
 
@@ -114,6 +182,182 @@ class LotteryPoolTest extends TestCase
             ])
             ->assertStatus(422)
             ->assertJsonFragment(['message' => '抽奖次数不足']);
+    }
+
+    public function test_fragrance_draw_uses_vote_weight_to_decide_current_user_win_probability(): void
+    {
+        $currentUser = User::factory()->create();
+        $highWeightUser = User::factory()->create();
+        $target = User::factory()->create();
+        $targetWork = $this->createWork($target);
+
+        $this->createQualification($currentUser, AwardLevels::FRAGRANCE_VOTE);
+        $this->createQualification($highWeightUser, AwardLevels::FRAGRANCE_VOTE);
+        $prize = $this->createPrize(AwardLevels::FRAGRANCE_VOTE, 1);
+        $this->createVotes($currentUser, $targetWork, 1);
+        $this->createVotes($highWeightUser, $targetWork, 5);
+
+        $service = new class(app(AtomicLock::class)) extends LotteryService
+        {
+            protected function randomWeight(int $max): int
+            {
+                return 2;
+            }
+        };
+
+        $result = $service->draw($currentUser, AwardLevels::FRAGRANCE_VOTE);
+
+        $this->assertSame(LotteryResultStatus::Lost->value, $result['resultStatus']);
+        $this->assertDatabaseHas('prizes', [
+            'id' => $prize->id,
+            'stock' => 1,
+        ]);
+        $this->assertDatabaseHas('lottery_records', [
+            'user_id' => $currentUser->id,
+            'source_type' => AwardLevels::FRAGRANCE_VOTE,
+            'result_status' => LotteryResultStatus::Lost->value,
+        ]);
+    }
+
+    public function test_fragrance_draw_wins_when_weighted_pick_selects_current_user(): void
+    {
+        $currentUser = User::factory()->create();
+        $target = User::factory()->create();
+        $targetWork = $this->createWork($target);
+
+        $this->createQualification($currentUser, AwardLevels::FRAGRANCE_VOTE);
+        $prize = $this->createPrize(AwardLevels::FRAGRANCE_VOTE, 1);
+        $this->createVotes($currentUser, $targetWork, 3);
+
+        $service = new class(app(AtomicLock::class)) extends LotteryService
+        {
+            protected function randomWeight(int $max): int
+            {
+                return $max;
+            }
+        };
+
+        $result = $service->draw($currentUser, AwardLevels::FRAGRANCE_VOTE);
+
+        $this->assertSame(LotteryResultStatus::Won->value, $result['resultStatus']);
+        $this->assertSame((string) $prize->id, $result['prize']['id']);
+        $this->assertDatabaseHas('prizes', [
+            'id' => $prize->id,
+            'stock' => 0,
+        ]);
+    }
+
+    public function test_fragrance_draw_uses_probability_formula_with_remaining_stock(): void
+    {
+        $currentUser = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $target = User::factory()->create();
+        $targetWork = $this->createWork($target);
+
+        $this->createQualification($currentUser, AwardLevels::FRAGRANCE_VOTE);
+        $this->createQualification($otherUser, AwardLevels::FRAGRANCE_VOTE);
+        $prize = $this->createPrize(AwardLevels::FRAGRANCE_VOTE, 2);
+        $this->createVotes($currentUser, $targetWork, 1);
+        $this->createVotes($otherUser, $targetWork, 5);
+
+        $service = new class(app(AtomicLock::class)) extends LotteryService
+        {
+            protected function randomWeight(int $max): int
+            {
+                return 2;
+            }
+        };
+
+        $result = $service->draw($currentUser, AwardLevels::FRAGRANCE_VOTE);
+
+        $this->assertSame(LotteryResultStatus::Won->value, $result['resultStatus']);
+        $this->assertSame((string) $prize->id, $result['prize']['id']);
+        $this->assertDatabaseHas('prizes', [
+            'id' => $prize->id,
+            'stock' => 1,
+        ]);
+    }
+
+    public function test_fragrance_draw_does_not_auto_win_when_remaining_stock_covers_remaining_candidates(): void
+    {
+        $currentUser = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $target = User::factory()->create();
+        $targetWork = $this->createWork($target);
+
+        $this->createQualification($currentUser, AwardLevels::FRAGRANCE_VOTE);
+        $this->createQualification($otherUser, AwardLevels::FRAGRANCE_VOTE);
+        $prize = $this->createPrize(AwardLevels::FRAGRANCE_VOTE, 2);
+        $this->createVotes($currentUser, $targetWork, 1);
+        $this->createVotes($otherUser, $targetWork, 5);
+
+        $service = new class(app(AtomicLock::class)) extends LotteryService
+        {
+            protected function randomWeight(int $max): int
+            {
+                return 3;
+            }
+        };
+
+        $result = $service->draw($currentUser, AwardLevels::FRAGRANCE_VOTE);
+
+        $this->assertSame(LotteryResultStatus::Lost->value, $result['resultStatus']);
+        $this->assertDatabaseHas('prizes', [
+            'id' => $prize->id,
+            'stock' => 2,
+        ]);
+    }
+
+    public function test_fragrance_draw_removes_already_drawn_users_from_remaining_weight_pool(): void
+    {
+        $currentUser = User::factory()->create();
+        $alreadyDrawnUser = User::factory()->create();
+        $target = User::factory()->create();
+        $targetWork = $this->createWork($target);
+
+        $this->createQualification($currentUser, AwardLevels::FRAGRANCE_VOTE);
+        $this->createQualification($alreadyDrawnUser, AwardLevels::FRAGRANCE_VOTE);
+        $prize = $this->createPrize(AwardLevels::FRAGRANCE_VOTE, 1);
+        $this->createVotes($currentUser, $targetWork, 1);
+        $this->createVotes($alreadyDrawnUser, $targetWork, 100);
+        LotteryRecord::query()->create([
+            'user_id' => $alreadyDrawnUser->id,
+            'prize_id' => null,
+            'source_type' => AwardLevels::FRAGRANCE_VOTE,
+            'result_status' => LotteryResultStatus::Lost->value,
+            'drawn_at' => now(),
+        ]);
+
+        $service = new class(app(AtomicLock::class)) extends LotteryService
+        {
+            protected function randomWeight(int $max): int
+            {
+                return $max;
+            }
+        };
+
+        $result = $service->draw($currentUser, AwardLevels::FRAGRANCE_VOTE);
+
+        $this->assertSame(LotteryResultStatus::Won->value, $result['resultStatus']);
+        $this->assertSame((string) $prize->id, $result['prize']['id']);
+    }
+
+    public function test_fragrance_draw_only_counts_votes_for_other_users_works(): void
+    {
+        $currentUser = User::factory()->create();
+        $currentUserWork = $this->createWork($currentUser);
+
+        $this->createQualification($currentUser, AwardLevels::FRAGRANCE_VOTE);
+        $prize = $this->createPrize(AwardLevels::FRAGRANCE_VOTE, 1);
+        $this->createVotes($currentUser, $currentUserWork, 3);
+
+        $result = app(LotteryService::class)->draw($currentUser, AwardLevels::FRAGRANCE_VOTE);
+
+        $this->assertSame(LotteryResultStatus::Lost->value, $result['resultStatus']);
+        $this->assertDatabaseHas('prizes', [
+            'id' => $prize->id,
+            'stock' => 1,
+        ]);
     }
 
     public function test_winning_one_pool_does_not_block_another_pool(): void
@@ -254,6 +498,30 @@ class LotteryPoolTest extends TestCase
             'stock' => $stock,
             'status' => 'active',
         ]);
+    }
+
+    private function createWork(User $user): Work
+    {
+        return Work::query()->create([
+            'user_id' => $user->id,
+            'type' => 'traditional',
+            'group' => 'employee',
+            'title' => 'Vote Target '.$user->employee_no,
+            'description' => 'Vote target',
+            'publish_status' => 'published',
+        ]);
+    }
+
+    private function createVotes(User $user, Work $work, int $count): void
+    {
+        for ($index = 0; $index < $count; $index++) {
+            WorkVote::query()->create([
+                'user_id' => $user->id,
+                'work_id' => $work->id,
+                'vote_date' => now()->subDays($index)->toDateString(),
+                'source' => 'h5',
+            ]);
+        }
     }
 
     /**

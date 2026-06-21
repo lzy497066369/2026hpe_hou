@@ -20,4 +20,9 @@ class LotteryQualification extends Model
             'qualified' => 'boolean',
         ];
     }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

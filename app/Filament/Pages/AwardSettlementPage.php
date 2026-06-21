@@ -96,6 +96,30 @@ class AwardSettlementPage extends Page
         );
     }
 
+    protected function supplementFragranceAwardsAction(): Action
+    {
+        return Action::make('supplementFragranceAwards')
+            ->label('补抽手有余香剩余奖品')
+            ->color('danger')
+            ->modalHeading('补抽手有余香剩余奖品预览')
+            ->modalDescription('确认后将从未抽过且仍有资格的用户中，按给他人投票权重补抽剩余库存。只生成中奖记录，不会给未补中的用户写入未中奖记录。')
+            ->modalWidth(Width::SevenExtraLarge)
+            ->modalSubmitActionLabel('确认补抽')
+            ->modalContent(fn () => view('filament.pages.award-settlement-list', [
+                'rows' => app(AwardSettlementService::class)->previewSupplementFragranceAwards(),
+            ]))
+            ->action(function (): void {
+                $result = app(AwardSettlementService::class)->supplementFragranceAwards();
+                app(OperationLogger::class)->log('award_settlement', 'supplementFragranceAwards', null, $result);
+
+                Notification::make()
+                    ->title('手有余香剩余奖品已补抽')
+                    ->body('本次补抽中奖人数：'.$result['count'])
+                    ->success()
+                    ->send();
+            });
+    }
+
     protected function dreamParkWinnersAction(): Action
     {
         return $this->listAction(
@@ -123,6 +147,30 @@ class AwardSettlementPage extends Page
             fn (AwardSettlementService $service): array => $service->publishDreamParkQualifications(),
             '确认后将把符合条件的用户写入逐梦乐园奖抽奖资格，未发布前前台不可抽该奖项。'
         );
+    }
+
+    protected function supplementDreamParkAwardsAction(): Action
+    {
+        return Action::make('supplementDreamParkAwards')
+            ->label('补抽逐梦乐园剩余奖品')
+            ->color('danger')
+            ->modalHeading('补抽逐梦乐园剩余奖品预览')
+            ->modalDescription('确认后将从未抽过且仍有资格的用户中，随机补抽剩余库存。只生成中奖记录，不会给未补中的用户写入未中奖记录。')
+            ->modalWidth(Width::SevenExtraLarge)
+            ->modalSubmitActionLabel('确认补抽')
+            ->modalContent(fn () => view('filament.pages.award-settlement-list', [
+                'rows' => app(AwardSettlementService::class)->previewSupplementDreamParkAwards(),
+            ]))
+            ->action(function (): void {
+                $result = app(AwardSettlementService::class)->supplementDreamParkAwards();
+                app(OperationLogger::class)->log('award_settlement', 'supplementDreamParkAwards', null, $result);
+
+                Notification::make()
+                    ->title('逐梦乐园剩余奖品已补抽')
+                    ->body('本次补抽中奖人数：'.$result['count'])
+                    ->success()
+                    ->send();
+            });
     }
 
     /**

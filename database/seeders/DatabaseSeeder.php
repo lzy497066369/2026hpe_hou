@@ -10,6 +10,7 @@ use App\Models\ActivitySetting;
 use App\Models\Prize;
 use App\Models\User;
 use App\Models\Work;
+use App\Support\AwardLevels;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -75,11 +76,11 @@ class DatabaseSeeder extends Seeder
         );
 
         foreach ([
-            ['name' => '手有余香奖', 'level' => 'vote_lucky', 'stock' => 10],
-            ['name' => '逐梦乐园奖', 'level' => 'dream_park', 'stock' => 3],
-            ['name' => '赛博筑梦家才艺大赛奖', 'level' => 'talent_top', 'stock' => 60],
-            ['name' => '线上小游戏奖/像素游戏王', 'level' => 'game_top', 'stock' => 10],
-            ['name' => '阳光普照奖', 'level' => 'participation', 'stock' => 0],
+            ['name' => '手有余香奖', 'level' => AwardLevels::FRAGRANCE_VOTE, 'stock' => 10],
+            ['name' => '逐梦乐园奖', 'level' => AwardLevels::DREAM_PARK, 'stock' => 3],
+            ['name' => '赛博筑梦家才艺大赛奖', 'level' => AwardLevels::TALENT_TOP, 'stock' => 60],
+            ['name' => '线上小游戏奖/像素游戏王', 'level' => AwardLevels::GAME_TOP, 'stock' => 10],
+            ['name' => '阳光普照奖', 'level' => AwardLevels::PARTICIPATION, 'stock' => 0],
         ] as $prize) {
             Prize::query()->updateOrCreate(['level' => $prize['level']], [
                 'name' => $prize['name'],

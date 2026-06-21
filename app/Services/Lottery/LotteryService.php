@@ -8,6 +8,7 @@ use App\Models\LotteryRecord;
 use App\Models\Prize;
 use App\Models\PrizeClaim;
 use App\Models\User;
+use App\Models\WorkVote;
 use App\Services\Support\AtomicLock;
 use App\Support\AwardLevels;
 use Illuminate\Support\Facades\DB;
@@ -114,16 +115,24 @@ class LotteryService
                     '抽奖次数不足'
                 );
 
+                $shouldTryPrize = match ($sourceType) {
+                    AwardLevels::FRAGRANCE_VOTE => $this->weightedFragranceDrawSelectsUser($user),
+                    AwardLevels::DREAM_PARK => $this->probabilityDrawSelectsUser($sourceType),
+                    default => true,
+                };
+
                 $qualification->forceFill([
                     'used_count' => $qualification->chance_count,
                 ])->save();
 
-                $prize = Prize::query()
-                    ->where('level', $sourceType)
-                    ->where('status', 'active')
-                    ->where('stock', '>', 0)
-                    ->lockForUpdate()
-                    ->first();
+                $prize = $shouldTryPrize
+                    ? Prize::query()
+                        ->where('level', $sourceType)
+                        ->where('status', 'active')
+                        ->where('stock', '>', 0)
+                        ->lockForUpdate()
+                        ->first()
+                    : null;
 
                 if ($prize !== null) {
                     $prize->decrement('stock');
@@ -336,6 +345,106 @@ class LotteryService
         );
     }
 
+    private function weightedFragranceDrawSelectsUser(User $user): bool
+    {
+        $remainingStock = (int) Prize::query()
+            ->where('level', AwardLevels::FRAGRANCE_VOTE)
+            ->where('status', 'active')
+            ->lockForUpdate()
+            ->value('stock');
+
+        if ($remainingStock <= 0) {
+            return false;
+        }
+
+        $weights = $this->fragranceCandidateWeights();
+
+        if (! $weights->has($user->id)) {
+            return false;
+        }
+
+        $totalWeight = $weights->sum();
+        if ($totalWeight <= 0) {
+            return false;
+        }
+
+        $userWeight = (int) $weights[$user->id];
+        $winningThreshold = min($totalWeight, $userWeight * $remainingStock);
+
+        return $this->randomWeight($totalWeight) <= $winningThreshold;
+    }
+
+    private function probabilityDrawSelectsUser(string $sourceType): bool
+    {
+        $remainingStock = (int) Prize::query()
+            ->where('level', $sourceType)
+            ->where('status', 'active')
+            ->lockForUpdate()
+            ->value('stock');
+
+        if ($remainingStock <= 0) {
+            return false;
+        }
+
+        $remainingEligibleUsers = LotteryQualification::query()
+            ->where('source_type', $sourceType)
+            ->where('qualified', true)
+            ->whereColumn('used_count', '<', 'chance_count')
+            ->whereNotIn('user_id', LotteryRecord::query()
+                ->select('user_id')
+                ->where('source_type', $sourceType))
+            ->lockForUpdate()
+            ->count();
+
+        if ($remainingEligibleUsers <= 0) {
+            return false;
+        }
+
+        if ($remainingEligibleUsers <= $remainingStock) {
+            return true;
+        }
+
+        return $this->randomWeight($remainingEligibleUsers) <= $remainingStock;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int|string, int>
+     */
+    private function fragranceCandidateWeights()
+    {
+        $candidateUserIds = LotteryQualification::query()
+            ->where('source_type', AwardLevels::FRAGRANCE_VOTE)
+            ->where('qualified', true)
+            ->whereColumn('used_count', '<', 'chance_count')
+            ->whereNotIn('user_id', LotteryRecord::query()
+                ->select('user_id')
+                ->where('source_type', AwardLevels::FRAGRANCE_VOTE))
+            ->lockForUpdate()
+            ->pluck('user_id');
+
+        if ($candidateUserIds->isEmpty()) {
+            return collect();
+        }
+
+        $weights = WorkVote::query()
+            ->join('works', 'works.id', '=', 'work_votes.work_id')
+            ->selectRaw('work_votes.user_id as voter_id, count(*) as weight')
+            ->whereIn('work_votes.user_id', $candidateUserIds)
+            ->whereColumn('works.user_id', '!=', 'work_votes.user_id')
+            ->groupBy('work_votes.user_id')
+            ->orderBy('work_votes.user_id')
+            ->pluck('weight', 'voter_id')
+            ->map(fn (mixed $weight): int => (int) $weight)
+            ->filter(fn (int $weight): bool => $weight > 0);
+
+        return $weights;
+    }
+
+    protected function randomWeight(int $max): int
+    {
+        return random_int(1, $max);
+    }
+
     private function normalizeSourceType(?string $sourceType): ?string
     {
         if ($sourceType === null || $sourceType === '') {
@@ -354,17 +463,6 @@ class LotteryService
         );
 
         return $sourceType;
-    }
-
-    private function ensureOfficialPoolIsOpen(string $sourceType): void
-    {
-        if (! in_array($sourceType, [AwardLevels::FRAGRANCE_VOTE, AwardLevels::DREAM_PARK], true)) {
-            return;
-        }
-
-        $openAt = CarbonImmutable::parse('2026-07-10 09:00:00', 'Asia/Shanghai');
-
-        abort_if(now('Asia/Shanghai')->lt($openAt), 422, '抽奖尚未开始');
     }
 
     private function qualificationMissingReason(?string $sourceType): string

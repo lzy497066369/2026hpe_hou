@@ -191,6 +191,20 @@ class AwardSettlementServiceTest extends TestCase
         $this->assertFalse($candidates[$alreadyDrawn->id]['eligible']);
     }
 
+    public function test_fragrance_candidates_do_not_count_votes_for_own_works(): void
+    {
+        $selfVoter = User::factory()->create(['employee_no' => 'E3010']);
+        $ownWork = $this->createWork($selfVoter);
+
+        $this->createVotes($selfVoter, $ownWork, 3);
+
+        $candidates = collect(app(AwardSettlementService::class)->fragranceCandidates())->keyBy('user_id');
+
+        $this->assertFalse($candidates[$selfVoter->id]['eligible']);
+        $this->assertSame(0, $candidates[$selfVoter->id]['weight']);
+        $this->assertSame('未为他人投票', $candidates[$selfVoter->id]['reason']);
+    }
+
     public function test_dream_park_candidates_show_missing_reasons_and_allow_existing_top_winners(): void
     {
         $eligible = User::factory()->create(['employee_no' => 'E4001']);
@@ -261,6 +275,162 @@ class AwardSettlementServiceTest extends TestCase
             'user_id' => $alreadyWon->id,
             'source_type' => AwardLevels::FRAGRANCE_VOTE,
         ]);
+    }
+
+    public function test_supplement_fragrance_awards_only_creates_remaining_winners(): void
+    {
+        $first = User::factory()->create(['employee_no' => 'E5101']);
+        $second = User::factory()->create(['employee_no' => 'E5102']);
+        $third = User::factory()->create(['employee_no' => 'E5103']);
+        $noVote = User::factory()->create(['employee_no' => 'E5104']);
+        $alreadyDrawn = User::factory()->create(['employee_no' => 'E5105']);
+        $withoutQualification = User::factory()->create(['employee_no' => 'E5106']);
+        $notQualified = User::factory()->create(['employee_no' => 'E5107']);
+        $usedUp = User::factory()->create(['employee_no' => 'E5108']);
+        $target = User::factory()->create();
+        $targetWork = $this->createWork($target);
+
+        foreach ([$first, $second, $third, $noVote, $alreadyDrawn] as $user) {
+            LotteryQualification::query()->create([
+                'user_id' => $user->id,
+                'source_type' => AwardLevels::FRAGRANCE_VOTE,
+                'qualified' => true,
+                'chance_count' => 1,
+                'used_count' => 0,
+            ]);
+        }
+        LotteryQualification::query()->create([
+            'user_id' => $notQualified->id,
+            'source_type' => AwardLevels::FRAGRANCE_VOTE,
+            'qualified' => false,
+            'chance_count' => 1,
+            'used_count' => 0,
+        ]);
+        LotteryQualification::query()->create([
+            'user_id' => $usedUp->id,
+            'source_type' => AwardLevels::FRAGRANCE_VOTE,
+            'qualified' => true,
+            'chance_count' => 1,
+            'used_count' => 1,
+        ]);
+
+        $this->createVotes($first, $targetWork, 1);
+        $this->createVotes($second, $targetWork, 3);
+        $this->createVotes($third, $targetWork, 5);
+        $this->createVotes($alreadyDrawn, $targetWork, 9);
+        $this->createVotes($withoutQualification, $targetWork, 99);
+        $this->createVotes($notQualified, $targetWork, 99);
+        $this->createVotes($usedUp, $targetWork, 99);
+        $this->createLostRecord($alreadyDrawn, AwardLevels::FRAGRANCE_VOTE);
+        $prize = Prize::query()->create([
+            'name' => '手有余香奖',
+            'level' => AwardLevels::FRAGRANCE_VOTE,
+            'stock' => 2,
+            'status' => 'active',
+        ]);
+
+        $service = app(AwardSettlementService::class);
+        $preview = collect($service->previewSupplementFragranceAwards());
+        $result = $service->supplementFragranceAwards();
+
+        $this->assertEqualsCanonicalizing(
+            [$first->id, $second->id, $third->id],
+            $preview->pluck('user_id')->all()
+        );
+        $this->assertSame(2, $result['count']);
+        $this->assertDatabaseHas('prizes', [
+            'id' => $prize->id,
+            'stock' => 0,
+        ]);
+        $this->assertSame(2, LotteryRecord::query()
+            ->where('source_type', AwardLevels::FRAGRANCE_VOTE)
+            ->where('result_status', LotteryResultStatus::Won->value)
+            ->count());
+        $this->assertSame(0, LotteryRecord::query()
+            ->whereIn('user_id', [$first->id, $second->id, $third->id, $noVote->id])
+            ->where('source_type', AwardLevels::FRAGRANCE_VOTE)
+            ->where('result_status', LotteryResultStatus::Lost->value)
+            ->count());
+        $this->assertSame(2, LotteryQualification::query()
+            ->whereIn('user_id', [$first->id, $second->id, $third->id])
+            ->where('source_type', AwardLevels::FRAGRANCE_VOTE)
+            ->whereColumn('used_count', 'chance_count')
+            ->count());
+        $this->assertDatabaseHas('lottery_qualifications', [
+            'user_id' => $noVote->id,
+            'source_type' => AwardLevels::FRAGRANCE_VOTE,
+            'used_count' => 0,
+        ]);
+        foreach ([$withoutQualification, $notQualified, $usedUp] as $user) {
+            $this->assertDatabaseMissing('lottery_records', [
+                'user_id' => $user->id,
+                'source_type' => AwardLevels::FRAGRANCE_VOTE,
+            ]);
+        }
+    }
+
+    public function test_supplement_dream_park_awards_only_creates_remaining_winners(): void
+    {
+        $first = User::factory()->create(['employee_no' => 'E5201']);
+        $second = User::factory()->create(['employee_no' => 'E5202']);
+        $third = User::factory()->create(['employee_no' => 'E5203']);
+        $alreadyDrawn = User::factory()->create(['employee_no' => 'E5204']);
+        $usedUp = User::factory()->create(['employee_no' => 'E5205']);
+
+        foreach ([$first, $second, $third, $alreadyDrawn] as $user) {
+            LotteryQualification::query()->create([
+                'user_id' => $user->id,
+                'source_type' => AwardLevels::DREAM_PARK,
+                'qualified' => true,
+                'chance_count' => 1,
+                'used_count' => 0,
+            ]);
+        }
+
+        LotteryQualification::query()->create([
+            'user_id' => $usedUp->id,
+            'source_type' => AwardLevels::DREAM_PARK,
+            'qualified' => true,
+            'chance_count' => 1,
+            'used_count' => 1,
+        ]);
+
+        $this->createLostRecord($alreadyDrawn, AwardLevels::DREAM_PARK);
+        $prize = Prize::query()->create([
+            'name' => '逐梦乐园奖',
+            'level' => AwardLevels::DREAM_PARK,
+            'stock' => 2,
+            'status' => 'active',
+        ]);
+
+        $result = app(AwardSettlementService::class)->supplementDreamParkAwards();
+
+        $this->assertSame(2, $result['count']);
+        $this->assertDatabaseHas('prizes', [
+            'id' => $prize->id,
+            'stock' => 0,
+        ]);
+        $this->assertSame(2, LotteryRecord::query()
+            ->where('source_type', AwardLevels::DREAM_PARK)
+            ->where('result_status', LotteryResultStatus::Won->value)
+            ->count());
+        $this->assertSame(0, LotteryRecord::query()
+            ->whereIn('user_id', [$first->id, $second->id, $third->id])
+            ->where('source_type', AwardLevels::DREAM_PARK)
+            ->where('result_status', LotteryResultStatus::Lost->value)
+            ->count());
+        $this->assertSame(2, LotteryQualification::query()
+            ->whereIn('user_id', [$first->id, $second->id, $third->id])
+            ->where('source_type', AwardLevels::DREAM_PARK)
+            ->whereColumn('used_count', 'chance_count')
+            ->count());
+        foreach ([$alreadyDrawn, $usedUp] as $user) {
+            $this->assertDatabaseMissing('lottery_records', [
+                'user_id' => $user->id,
+                'source_type' => AwardLevels::DREAM_PARK,
+                'result_status' => LotteryResultStatus::Won->value,
+            ]);
+        }
     }
 
     public function test_publish_dream_park_qualifications_only_includes_eligible_users(): void

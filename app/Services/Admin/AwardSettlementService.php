@@ -164,9 +164,11 @@ class AwardSettlementService
     public function fragranceCandidates(): array
     {
         $voteCounts = WorkVote::query()
-            ->select('user_id', DB::raw('count(*) as votes_count'))
-            ->groupBy('user_id')
-            ->pluck('votes_count', 'user_id');
+            ->join('works', 'works.id', '=', 'work_votes.work_id')
+            ->selectRaw('work_votes.user_id as voter_id, count(*) as votes_count')
+            ->whereColumn('works.user_id', '!=', 'work_votes.user_id')
+            ->groupBy('work_votes.user_id')
+            ->pluck('votes_count', 'voter_id');
 
         $drawnUserIds = $this->drawnUserIdsForLevel(AwardLevels::FRAGRANCE_VOTE);
 
@@ -227,6 +229,90 @@ class AwardSettlementService
     /**
      * @return array<int, array<string, mixed>>
      */
+    public function previewSupplementFragranceAwards(): array
+    {
+        return $this->remainingFragranceAwardCandidates()->values()->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function supplementFragranceAwards(): array
+    {
+        return DB::transaction(function (): array {
+            $prize = Prize::query()
+                ->where('level', AwardLevels::FRAGRANCE_VOTE)
+                ->where('status', 'active')
+                ->where('stock', '>', 0)
+                ->lockForUpdate()
+                ->first();
+
+            if ($prize === null) {
+                return [
+                    'count' => 0,
+                    'rows' => [],
+                ];
+            }
+
+            $candidates = $this->remainingFragranceAwardCandidates();
+            if ($candidates->isEmpty()) {
+                return [
+                    'count' => 0,
+                    'rows' => [],
+                ];
+            }
+
+            $winnerUserIds = $this->weightedPickUserIds($candidates, min($prize->stock, $candidates->count()));
+            $winnerRows = $candidates
+                ->whereIn('user_id', $winnerUserIds)
+                ->values();
+            $createdRows = collect();
+
+            foreach ($winnerRows as $row) {
+                $qualification = LotteryQualification::query()
+                    ->where('user_id', $row['user_id'])
+                    ->where('source_type', AwardLevels::FRAGRANCE_VOTE)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($qualification === null || $qualification->used_count >= $qualification->chance_count) {
+                    continue;
+                }
+
+                $record = LotteryRecord::query()->firstOrCreate(
+                    [
+                        'user_id' => $row['user_id'],
+                        'source_type' => AwardLevels::FRAGRANCE_VOTE,
+                    ],
+                    [
+                        'prize_id' => $prize->id,
+                        'result_status' => LotteryResultStatus::Won->value,
+                        'drawn_at' => now(),
+                    ]
+                );
+
+                if (! $record->wasRecentlyCreated) {
+                    continue;
+                }
+
+                $qualification->forceFill([
+                    'used_count' => $qualification->chance_count,
+                ])->save();
+
+                $prize->decrement('stock');
+                $createdRows->push($row);
+            }
+
+            return [
+                'count' => $createdRows->count(),
+                'rows' => $createdRows->all(),
+            ];
+        });
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function dreamParkCandidates(): array
     {
         $usersWithPublishedWork = Work::query()
@@ -235,7 +321,12 @@ class AwardSettlementService
             ->unique()
             ->all();
         $usersWithGame = GameRecord::query()->pluck('user_id')->unique()->all();
-        $usersWithVote = WorkVote::query()->pluck('user_id')->unique()->all();
+        $usersWithVote = WorkVote::query()
+            ->join('works', 'works.id', '=', 'work_votes.work_id')
+            ->whereColumn('works.user_id', '!=', 'work_votes.user_id')
+            ->pluck('work_votes.user_id')
+            ->unique()
+            ->all();
         $drawnUserIds = $this->drawnUserIdsForLevel(AwardLevels::DREAM_PARK);
 
         return User::query()
@@ -296,6 +387,88 @@ class AwardSettlementService
             $this->previewDreamParkQualifications(),
             fn (): int => 1,
         );
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function previewSupplementDreamParkAwards(): array
+    {
+        return $this->remainingDreamParkAwardCandidates()->values()->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function supplementDreamParkAwards(): array
+    {
+        return DB::transaction(function (): array {
+            $prize = Prize::query()
+                ->where('level', AwardLevels::DREAM_PARK)
+                ->where('status', 'active')
+                ->where('stock', '>', 0)
+                ->lockForUpdate()
+                ->first();
+
+            if ($prize === null) {
+                return [
+                    'count' => 0,
+                    'rows' => [],
+                ];
+            }
+
+            $candidates = $this->remainingDreamParkAwardCandidates();
+            if ($candidates->isEmpty()) {
+                return [
+                    'count' => 0,
+                    'rows' => [],
+                ];
+            }
+
+            $winnerUserIds = $this->randomPickUserIds($candidates, min($prize->stock, $candidates->count()));
+            $winnerRows = $candidates
+                ->whereIn('user_id', $winnerUserIds)
+                ->values();
+
+            foreach ($winnerRows as $row) {
+                $qualification = LotteryQualification::query()
+                    ->where('user_id', $row['user_id'])
+                    ->where('source_type', AwardLevels::DREAM_PARK)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($qualification === null || $qualification->used_count >= $qualification->chance_count) {
+                    continue;
+                }
+
+                $record = LotteryRecord::query()->firstOrCreate(
+                    [
+                        'user_id' => $row['user_id'],
+                        'source_type' => AwardLevels::DREAM_PARK,
+                    ],
+                    [
+                        'prize_id' => $prize->id,
+                        'result_status' => LotteryResultStatus::Won->value,
+                        'drawn_at' => now(),
+                    ]
+                );
+
+                if (! $record->wasRecentlyCreated) {
+                    continue;
+                }
+
+                $qualification->forceFill([
+                    'used_count' => $qualification->chance_count,
+                ])->save();
+
+                $prize->decrement('stock');
+            }
+
+            return [
+                'count' => $winnerRows->count(),
+                'rows' => $winnerRows->all(),
+            ];
+        });
     }
 
     /**
@@ -446,6 +619,134 @@ class AwardSettlementService
             'email' => $user?->email,
             'nickname' => $user?->nickname,
         ];
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function remainingFragranceAwardCandidates(): Collection
+    {
+        $voteCounts = WorkVote::query()
+            ->join('works', 'works.id', '=', 'work_votes.work_id')
+            ->selectRaw('work_votes.user_id as voter_id, count(*) as votes_count')
+            ->whereColumn('works.user_id', '!=', 'work_votes.user_id')
+            ->groupBy('work_votes.user_id')
+            ->pluck('votes_count', 'voter_id');
+
+        $drawnUserIds = $this->drawnUserIdsForLevel(AwardLevels::FRAGRANCE_VOTE);
+
+        return LotteryQualification::query()
+            ->with('user')
+            ->where('source_type', AwardLevels::FRAGRANCE_VOTE)
+            ->where('qualified', true)
+            ->whereColumn('used_count', '<', 'chance_count')
+            ->whereNotIn('user_id', $drawnUserIds)
+            ->orderBy('user_id')
+            ->get()
+            ->map(function (LotteryQualification $qualification) use ($voteCounts): ?array {
+                $weight = (int) ($voteCounts[$qualification->user_id] ?? 0);
+
+                if ($weight <= 0) {
+                    return null;
+                }
+
+                return [
+                    ...$this->userColumns($qualification->user),
+                    'weight' => $weight,
+                    'chance_count' => $qualification->chance_count,
+                    'used_count' => $qualification->used_count,
+                ];
+            })
+            ->filter()
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function remainingDreamParkAwardCandidates(): Collection
+    {
+        $drawnUserIds = $this->drawnUserIdsForLevel(AwardLevels::DREAM_PARK);
+
+        return LotteryQualification::query()
+            ->with('user')
+            ->where('source_type', AwardLevels::DREAM_PARK)
+            ->where('qualified', true)
+            ->whereColumn('used_count', '<', 'chance_count')
+            ->whereNotIn('user_id', $drawnUserIds)
+            ->orderBy('user_id')
+            ->get()
+            ->map(fn (LotteryQualification $qualification): array => [
+                ...$this->userColumns($qualification->user),
+                'chance_count' => $qualification->chance_count,
+                'used_count' => $qualification->used_count,
+            ])
+            ->values();
+    }
+
+    /**
+     * @param Collection<int, array<string, mixed>> $candidates
+     * @return array<int, int>
+     */
+    private function weightedPickUserIds(Collection $candidates, int $limit): array
+    {
+        $pool = $candidates
+            ->map(fn (array $row): array => [
+                'user_id' => (int) $row['user_id'],
+                'weight' => (int) $row['weight'],
+            ])
+            ->filter(fn (array $row): bool => $row['weight'] > 0)
+            ->values();
+        $picked = [];
+
+        while ($limit > 0 && $pool->isNotEmpty()) {
+            $totalWeight = $pool->sum('weight');
+            if ($totalWeight <= 0) {
+                break;
+            }
+
+            $target = random_int(1, $totalWeight);
+            $cursor = 0;
+            $pickedIndex = null;
+
+            foreach ($pool as $index => $row) {
+                $cursor += $row['weight'];
+
+                if ($target <= $cursor) {
+                    $pickedIndex = $index;
+                    $picked[] = $row['user_id'];
+                    break;
+                }
+            }
+
+            if ($pickedIndex === null) {
+                break;
+            }
+
+            $pool = $pool->reject(fn (array $row, int $index): bool => $index === $pickedIndex)->values();
+            $limit--;
+        }
+
+        return $picked;
+    }
+
+    /**
+     * @param Collection<int, array<string, mixed>> $candidates
+     * @return array<int, int>
+     */
+    private function randomPickUserIds(Collection $candidates, int $limit): array
+    {
+        if ($limit <= 0) {
+            return [];
+        }
+
+        return $candidates
+            ->shuffle()
+            ->take($limit)
+            ->pluck('user_id')
+            ->map(fn (mixed $userId): int => (int) $userId)
+            ->values()
+            ->all();
     }
 
     /**
