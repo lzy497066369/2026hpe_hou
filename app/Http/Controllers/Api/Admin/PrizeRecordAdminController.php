@@ -17,7 +17,7 @@ class PrizeRecordAdminController extends Controller
         $this->requireAdmin($request, $resolver);
 
         return ApiResponse::success(
-            LotteryRecord::query()->with(['prize', 'prizeClaim', 'work'])->orderByDesc('created_at')->paginate((int) $request->query('pageSize', 20))
+            LotteryRecord::query()->with(['prize', 'prizeClaim', 'user', 'work'])->orderByDesc('created_at')->paginate((int) $request->query('pageSize', 20))
         );
     }
 

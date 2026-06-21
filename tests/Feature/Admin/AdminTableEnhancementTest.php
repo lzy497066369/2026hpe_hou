@@ -7,6 +7,7 @@ use App\Filament\Exports\UsersExporter;
 use App\Filament\Exports\WorkExporter;
 use App\Providers\Filament\AdminPanelProvider;
 use App\Filament\Widgets\AdminOverviewStats;
+use App\Models\LotteryRecord;
 use App\Models\UploadedFile;
 use App\Models\User;
 use App\Models\Work;
@@ -121,8 +122,30 @@ class AdminTableEnhancementTest extends TestCase
         $this->assertStringContainsString('AdminDisplay::claimType', $tableClaimTypeBlock);
         $this->assertStringContainsString('AdminDisplay::claimType', $infolistClaimTypeBlock);
 
-        $this->assertStringContainsString('$record->prizeClaim?->pickup_address', $tableSource);
-        $this->assertStringContainsString('$record->prizeClaim?->pickup_address', $infolistSource);
+        $this->assertStringContainsString("AdminDisplay::claimValue(\$record, 'pickup_address')", $tableSource);
+        $this->assertStringContainsString("AdminDisplay::claimValue(\$record, 'pickup_address')", $infolistSource);
+    }
+
+    public function test_admin_claim_display_falls_back_to_user_claim_preference(): void
+    {
+        $user = User::factory()->create([
+            'claim_type' => 'shipping',
+            'receiver_name' => 'Fallback Receiver',
+            'receiver_phone' => '13900000000',
+            'receiver_address' => '山西省 晋城市 泽州县 1231231',
+            'pickup_address' => '7.16 北京-望京',
+        ]);
+        $record = LotteryRecord::query()->create([
+            'user_id' => $user->id,
+            'source_type' => 'manual',
+            'result_status' => 'won',
+        ])->load(['user', 'prizeClaim']);
+
+        $this->assertSame('邮寄', AdminDisplay::claimTypeForRecord($record));
+        $this->assertSame('Fallback Receiver', AdminDisplay::claimValue($record, 'receiver_name'));
+        $this->assertSame('13900000000', AdminDisplay::claimValue($record, 'receiver_phone'));
+        $this->assertSame('山西省 晋城市 泽州县 1231231', AdminDisplay::claimValue($record, 'receiver_address'));
+        $this->assertSame('7.16 北京-望京', AdminDisplay::claimValue($record, 'pickup_address'));
     }
 
     public function test_admin_overview_hides_removed_summary_cards(): void

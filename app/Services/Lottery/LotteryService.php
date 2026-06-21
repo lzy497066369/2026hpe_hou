@@ -129,7 +129,7 @@ class LotteryService
                     $prize->decrement('stock');
                 }
 
-                return LotteryRecord::query()->create([
+                $record = LotteryRecord::query()->create([
                     'user_id' => $user->id,
                     'prize_id' => $prize?->id,
                     'source_type' => $sourceType,
@@ -138,6 +138,12 @@ class LotteryService
                         : LotteryResultStatus::Won->value,
                     'drawn_at' => now(),
                 ]);
+
+                if ($prize !== null) {
+                    $this->syncUserClaimPreferenceToRecord($user, $record);
+                }
+
+                return $record;
             });
         });
 
@@ -305,6 +311,29 @@ class LotteryService
             ],
             'drawnAt' => $record->drawn_at?->toISOString(),
         ];
+    }
+
+    private function syncUserClaimPreferenceToRecord(User $user, LotteryRecord $record): void
+    {
+        if ($user->claim_type === null || $user->claim_type === '') {
+            return;
+        }
+
+        PrizeClaim::query()->updateOrCreate(
+            ['lottery_record_id' => $record->id],
+            [
+                'user_id' => $user->id,
+                'claim_type' => $user->claim_type,
+                'receiver_name' => $user->receiver_name ?: $user->name,
+                'receiver_phone' => $user->receiver_phone ?: $user->phone,
+                'receiver_address' => $user->receiver_address,
+                'pickup_name' => $user->pickup_name ?: $user->name,
+                'pickup_phone' => $user->pickup_phone ?: $user->phone,
+                'pickup_employee_no' => $user->pickup_employee_no ?: $user->employee_no,
+                'pickup_address' => $user->pickup_address,
+                'pickup_remark' => $user->pickup_remark,
+            ]
+        );
     }
 
     private function normalizeSourceType(?string $sourceType): ?string

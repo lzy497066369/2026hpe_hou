@@ -31,11 +31,15 @@ class LotteryRecordExporter extends Exporter
             ExportColumn::make('prizeClaim.claim_status')->label('领奖状态')
                 ->formatStateUsing(fn (?string $state): string => AdminDisplay::claimStatus($state)),
             ExportColumn::make('prizeClaim.claim_type')->label('奖品领取方式')
-                ->formatStateUsing(fn (?string $state): string => AdminDisplay::claimType($state)),
-            ExportColumn::make('prizeClaim.receiver_name')->label('姓名'),
-            ExportColumn::make('prizeClaim.receiver_phone')->label('电话'),
-            ExportColumn::make('prizeClaim.receiver_address')->label('地址'),
-            ExportColumn::make('prizeClaim.pickup_address')->label('线下领取地址'),
+                ->state(fn (LotteryRecord $record): string => AdminDisplay::claimTypeForRecord($record)),
+            ExportColumn::make('prizeClaim.receiver_name')->label('姓名')
+                ->state(fn (LotteryRecord $record): ?string => AdminDisplay::claimValue($record, 'receiver_name')),
+            ExportColumn::make('prizeClaim.receiver_phone')->label('电话')
+                ->state(fn (LotteryRecord $record): ?string => AdminDisplay::claimValue($record, 'receiver_phone')),
+            ExportColumn::make('prizeClaim.receiver_address')->label('地址')
+                ->state(fn (LotteryRecord $record): ?string => AdminDisplay::claimValue($record, 'receiver_address')),
+            ExportColumn::make('prizeClaim.pickup_address')->label('线下领取地址')
+                ->state(fn (LotteryRecord $record): ?string => AdminDisplay::claimValue($record, 'pickup_address')),
             ExportColumn::make('drawn_at')->label('开奖时间'),
             ExportColumn::make('created_at')->label('创建时间'),
             ExportColumn::make('updated_at')->label('更新时间'),

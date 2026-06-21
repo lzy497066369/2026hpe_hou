@@ -44,22 +44,22 @@ class LotteryRecordInfolist
                     ->placeholder('-'),
                 TextEntry::make('prizeClaim.claim_type')
                     ->label('奖品领取方式')
-                    ->getStateUsing(fn ($record): string => AdminDisplay::claimType($record->prizeClaim?->claim_type)),
+                    ->getStateUsing(fn ($record): string => AdminDisplay::claimTypeForRecord($record)),
                 TextEntry::make('prizeClaim.receiver_name')
                     ->label('姓名')
-                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->receiver_name)
+                    ->getStateUsing(fn ($record): ?string => AdminDisplay::claimValue($record, 'receiver_name'))
                     ->placeholder('-'),
                 TextEntry::make('prizeClaim.receiver_phone')
                     ->label('电话')
-                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->receiver_phone)
+                    ->getStateUsing(fn ($record): ?string => AdminDisplay::claimValue($record, 'receiver_phone'))
                     ->placeholder('-'),
                 TextEntry::make('prizeClaim.receiver_address')
                     ->label('地址')
-                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->receiver_address)
+                    ->getStateUsing(fn ($record): ?string => AdminDisplay::claimValue($record, 'receiver_address'))
                     ->placeholder('-'),
                 TextEntry::make('prizeClaim.pickup_address')
                     ->label('线下领取地址')
-                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->pickup_address)
+                    ->getStateUsing(fn ($record): ?string => AdminDisplay::claimValue($record, 'pickup_address'))
                     ->placeholder('-'),
                 TextEntry::make('drawn_at')
                     ->label('开奖时间')

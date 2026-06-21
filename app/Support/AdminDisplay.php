@@ -81,6 +81,21 @@ class AdminDisplay
         ][$state] ?? '未填写';
     }
 
+    public static function claimValue(mixed $record, string $field): ?string
+    {
+        $claimValue = $record->prizeClaim?->{$field};
+        if ($claimValue !== null && $claimValue !== '') {
+            return $claimValue;
+        }
+
+        return $record->user?->{$field};
+    }
+
+    public static function claimTypeForRecord(mixed $record): string
+    {
+        return self::claimType(self::claimValue($record, 'claim_type'));
+    }
+
     public static function userStatus(?string $state): string
     {
         return [
