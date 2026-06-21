@@ -47,6 +47,9 @@
                     <button type="button" class="award-settlement-action-card__button" wire:click="mountAction('fragranceWinners')">
                         查看获奖名单
                     </button>
+                    <button type="button" class="award-settlement-action-card__button" wire:click="mountAction('supplementFragranceAwards')">
+                        补抽剩余奖品
+                    </button>
                     <button type="button" class="award-settlement-utility-button" wire:click="mountAction('fragranceCandidates')">
                         权重列表
                     </button>
@@ -65,6 +68,9 @@
                     </button>
                     <button type="button" class="award-settlement-action-card__button" wire:click="mountAction('dreamParkWinners')">
                         查看获奖名单
+                    </button>
+                    <button type="button" class="award-settlement-action-card__button" wire:click="mountAction('supplementDreamParkAwards')">
+                        补抽剩余奖品
                     </button>
                     <button type="button" class="award-settlement-utility-button" wire:click="mountAction('dreamParkCandidates')">
                         可抽奖名单
@@ -96,6 +102,7 @@
                 <div class="award-settlement-card__tags" aria-label="手有余香奖操作">
                     <span>发布抽奖资格</span>
                     <span>获奖名单</span>
+                    <span>补抽剩余奖品</span>
                     <span>权重列表</span>
                 </div>
             </section>
@@ -108,6 +115,7 @@
                 </p>
                 <div class="award-settlement-card__tags" aria-label="逐梦乐园奖条件">
                     <span>发布抽奖资格</span>
+                    <span>补抽剩余奖品</span>
                     <span>已发布作品</span>
                     <span>有游戏记录</span>
                     <span>有投票记录</span>

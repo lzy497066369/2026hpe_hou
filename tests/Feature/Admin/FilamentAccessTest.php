@@ -44,6 +44,6 @@ class FilamentAccessTest extends TestCase
             ->assertSee('奖项结算管理')
             ->assertSee('发布抽奖资格')
             ->assertSee('预览并发布')
-            ->assertDontSee('补抽剩余奖品');
+            ->assertSee('补抽剩余奖品');
     }
 }
