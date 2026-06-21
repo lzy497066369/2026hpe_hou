@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Works\Tables;
 
 use App\Filament\Exports\WorkExporter;
+use App\Models\User;
 use App\Models\Work;
 use App\Services\Admin\OperationLogger;
 use App\Support\AdminDisplay;
@@ -122,6 +123,34 @@ class WorksTable
                         'approved' => '已通过',
                         'rejected' => '已驳回',
                     ]),
+                SelectFilter::make('city')
+                    ->label('城市')
+                    ->options(fn (): array => User::query()
+                        ->whereNotNull('city')
+                        ->where('city', '!=', '')
+                        ->distinct()
+                        ->orderBy('city')
+                        ->pluck('city', 'city')
+                        ->all())
+                    ->query(fn (Builder $query, array $data): Builder => filled($data['value'] ?? null)
+                        ? $query->whereHas('user', fn (Builder $query): Builder => $query->where('city', $data['value']))
+                        : $query)
+                    ->searchable()
+                    ->preload(),
+                SelectFilter::make('work_address_code')
+                    ->label('code（城市code）')
+                    ->options(fn (): array => User::query()
+                        ->whereNotNull('work_address_code')
+                        ->where('work_address_code', '!=', '')
+                        ->distinct()
+                        ->orderBy('work_address_code')
+                        ->pluck('work_address_code', 'work_address_code')
+                        ->all())
+                    ->query(fn (Builder $query, array $data): Builder => filled($data['value'] ?? null)
+                        ? $query->whereHas('user', fn (Builder $query): Builder => $query->where('work_address_code', $data['value']))
+                        : $query)
+                    ->searchable()
+                    ->preload(),
             ])
             ->recordActions([
                 Action::make('approve')

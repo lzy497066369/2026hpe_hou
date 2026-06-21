@@ -185,6 +185,17 @@ class AdminTableEnhancementTest extends TestCase
         $this->assertStringContainsString("->label('code（城市code）')", $source);
     }
 
+    public function test_work_admin_table_contains_city_and_city_code_filters(): void
+    {
+        $source = file_get_contents(base_path('app/Filament/Resources/Works/Tables/WorksTable.php'));
+
+        $this->assertStringContainsString("SelectFilter::make('city')", $source);
+        $this->assertStringContainsString("->where('city', \$data['value'])", $source);
+        $this->assertStringContainsString("SelectFilter::make('work_address_code')", $source);
+        $this->assertStringContainsString("->where('work_address_code', \$data['value'])", $source);
+        $this->assertStringContainsString("whereHas('user'", $source);
+    }
+
     public function test_work_exporter_contains_city_email_and_city_code_columns(): void
     {
         $exporter = new WorkExporter(new \Filament\Actions\Exports\Models\Export, [], []);

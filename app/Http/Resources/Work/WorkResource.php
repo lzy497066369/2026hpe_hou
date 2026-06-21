@@ -14,6 +14,7 @@ class WorkResource extends JsonResource
     {
         return [
             'id' => $this->resource['id'],
+            'serial' => $this->resource['serial'] ?? (int) $this->resource['id'],
             'type' => $this->resource['type'],
             'group' => $this->resource['group'],
             'title' => $this->resource['title'],
