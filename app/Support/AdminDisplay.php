@@ -78,7 +78,7 @@ class AdminDisplay
         return [
             'shipping' => '邮寄',
             'pickup' => '现场领取',
-        ][$state] ?? '现场领取';
+        ][$state] ?? '未填写';
     }
 
     public static function userStatus(?string $state): string

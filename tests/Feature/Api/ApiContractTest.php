@@ -8,6 +8,7 @@ use App\Enums\WorkGroup;
 use App\Enums\WorkPublishStatus;
 use App\Enums\WorkType;
 use App\Models\LotteryQualification;
+use App\Models\LotteryRecord;
 use App\Models\Prize;
 use App\Models\User;
 use App\Models\Work;
@@ -78,9 +79,11 @@ class ApiContractTest extends TestCase
 
         $this->travelTo(now('Asia/Shanghai')->setDate(2026, 7, 10)->setTime(9, 0));
 
-        $recordId = $this->withHeaders($headers)
-            ->postJson('/api/v1/lottery/draw', ['sourceType' => AwardLevels::FRAGRANCE_VOTE])
-            ->json('data.id');
+        $recordId = LotteryRecord::query()->create([
+            'user_id' => $user->id,
+            'result_status' => 'won',
+            'drawn_at' => now(),
+        ])->id;
 
         $endpoints = [
             ['POST', '/api/v1/auth/login', ['employeeNo' => 'E0001', 'email' => 'demo@example.com', 'nickname' => 'demo']],
@@ -91,10 +94,13 @@ class ApiContractTest extends TestCase
             ['GET', '/api/v1/lottery/qualification', [], $headers],
             ['POST', '/api/v1/lottery/draw', ['sourceType' => AwardLevels::FRAGRANCE_VOTE], $headers],
             ['POST', '/api/v1/lottery/records/'.$recordId.'/claim', [
-                'claimType' => 'shipping',
+                'claimType' => 'pickup',
                 'receiverName' => 'Demo User',
                 'receiverPhone' => '13800000000',
-                'receiverAddress' => 'Shanghai',
+                'pickupName' => 'Demo User',
+                'pickupPhone' => '13800000000',
+                'pickupEmployeeNo' => 'E0001',
+                'pickupAddress' => '7.16 北京-望京',
             ], $headers],
             ['GET', '/api/v1/profile/summary', [], $headers],
             ['POST', '/api/v1/uploads/policy', ['usageType' => 'work_content'], $headers],
@@ -128,5 +134,11 @@ class ApiContractTest extends TestCase
                     'pagination' => ['page', 'pageSize', 'total', 'hasMore'],
                 ],
             ]);
+
+        $this->assertDatabaseHas('prize_claims', [
+            'lottery_record_id' => $recordId,
+            'claim_type' => 'pickup',
+            'pickup_address' => '7.16 北京-望京',
+        ]);
     }
 }

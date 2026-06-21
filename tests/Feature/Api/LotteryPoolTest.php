@@ -76,6 +76,46 @@ class LotteryPoolTest extends TestCase
             ->assertJsonFragment(['message' => '该奖项已中奖']);
     }
 
+    public function test_losing_once_consumes_lottery_pool_qualification(): void
+    {
+        $user = User::factory()->create();
+        $this->createQualification($user, AwardLevels::FRAGRANCE_VOTE, 3);
+
+        $this->travelTo(now('Asia/Shanghai')->setDate(2026, 7, 10)->setTime(9, 0));
+
+        $headers = $this->authHeaders($user);
+
+        $this->withHeaders($headers)
+            ->postJson('/api/v1/lottery/draw', [
+                'sourceType' => AwardLevels::FRAGRANCE_VOTE,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.resultStatus', LotteryResultStatus::Lost->value)
+            ->assertJsonPath('data.sourceType', AwardLevels::FRAGRANCE_VOTE);
+
+        $this->assertDatabaseHas('lottery_qualifications', [
+            'user_id' => $user->id,
+            'source_type' => AwardLevels::FRAGRANCE_VOTE,
+            'chance_count' => 3,
+            'used_count' => 3,
+        ]);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/lottery/qualification?sourceType='.AwardLevels::FRAGRANCE_VOTE)
+            ->assertOk()
+            ->assertJsonPath('data.qualified', true)
+            ->assertJsonPath('data.chanceCount', 3)
+            ->assertJsonPath('data.usedCount', 3)
+            ->assertJsonPath('data.reason', 'chance_used_up');
+
+        $this->withHeaders($headers)
+            ->postJson('/api/v1/lottery/draw', [
+                'sourceType' => AwardLevels::FRAGRANCE_VOTE,
+            ])
+            ->assertStatus(422)
+            ->assertJsonFragment(['message' => '抽奖次数不足']);
+    }
+
     public function test_winning_one_pool_does_not_block_another_pool(): void
     {
         $user = User::factory()->create();
@@ -127,6 +167,20 @@ class LotteryPoolTest extends TestCase
             ->assertJsonPath('data.sourceType', AwardLevels::FRAGRANCE_VOTE)
             ->assertJsonPath('data.qualified', false)
             ->assertJsonPath('data.reason', 'qualification_not_published');
+    }
+
+    public function test_qualification_returns_not_qualified_after_pool_has_been_published(): void
+    {
+        $qualifiedUser = User::factory()->create();
+        $unqualifiedUser = User::factory()->create();
+        $this->createQualification($qualifiedUser, AwardLevels::FRAGRANCE_VOTE);
+
+        $this->withHeaders($this->authHeaders($unqualifiedUser))
+            ->getJson('/api/v1/lottery/qualification?sourceType='.AwardLevels::FRAGRANCE_VOTE)
+            ->assertOk()
+            ->assertJsonPath('data.sourceType', AwardLevels::FRAGRANCE_VOTE)
+            ->assertJsonPath('data.qualified', false)
+            ->assertJsonPath('data.reason', 'qualification_not_qualified');
     }
 
     public function test_qualification_returns_chance_used_up_when_all_chances_are_consumed(): void

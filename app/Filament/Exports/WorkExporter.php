@@ -30,6 +30,8 @@ class WorkExporter extends Exporter
                 ->formatStateUsing(fn (Work $record): string => AdminDisplay::preferredName($record->user)),
             ExportColumn::make('user.employee_no')->label('员工号'),
             ExportColumn::make('user.email')->label('邮箱'),
+            ExportColumn::make('user.city')->label('城市'),
+            ExportColumn::make('user.work_address_code')->label('code（城市code）'),
             ExportColumn::make('user.nickname')->label('昵称'),
             ExportColumn::make('type')->label('类别')
                 ->formatStateUsing(fn (?string $state): string => AdminDisplay::workType($state)),

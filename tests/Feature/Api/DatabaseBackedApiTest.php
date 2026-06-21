@@ -27,7 +27,7 @@ class DatabaseBackedApiTest extends TestCase
             'employee_no' => 'E0001',
             'nickname' => 'demo',
             'phone' => '13800000000',
-            'address' => 'Shanghai',
+            'city' => 'Shanghai',
             'password' => 'unused',
             'status' => 'active',
         ]);
@@ -127,6 +127,7 @@ class DatabaseBackedApiTest extends TestCase
         $this->withHeaders($headers)->getJson('/api/v1/profile/summary')
             ->assertOk()
             ->assertJsonPath('data.userId', (string) $user->id)
+            ->assertJsonPath('data.city', 'Shanghai')
             ->assertJsonPath('data.registrationStatus', RegistrationAuditStatus::Approved->value);
     }
 

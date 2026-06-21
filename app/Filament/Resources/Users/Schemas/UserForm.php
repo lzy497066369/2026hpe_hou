@@ -28,7 +28,7 @@ class UserForm
                 TextInput::make('phone')
                     ->label('电话')
                     ->tel(),
-                TextInput::make('address')
+                TextInput::make('city')
                     ->label('工作城市')
                     ->columnSpanFull(),
                 TextInput::make('work_address_code')

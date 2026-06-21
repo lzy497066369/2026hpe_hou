@@ -20,7 +20,7 @@ class LotteryRecordInfolist
                 TextEntry::make('user.email')
                     ->label('邮箱')
                     ->placeholder('-'),
-                TextEntry::make('user.address')
+                TextEntry::make('user.city')
                     ->label('城市')
                     ->placeholder('-'),
                 TextEntry::make('user.work_address_code')
@@ -38,6 +38,7 @@ class LotteryRecordInfolist
                     ->formatStateUsing(fn (?string $state): string => AdminDisplay::lotteryStatus($state)),
                 TextEntry::make('prizeClaim.claim_status')
                     ->label('领奖状态')
+                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->claim_status)
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => AdminDisplay::claimStatus($state))
                     ->placeholder('-'),
@@ -46,12 +47,19 @@ class LotteryRecordInfolist
                     ->getStateUsing(fn ($record): string => AdminDisplay::claimType($record->prizeClaim?->claim_type)),
                 TextEntry::make('prizeClaim.receiver_name')
                     ->label('姓名')
+                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->receiver_name)
                     ->placeholder('-'),
                 TextEntry::make('prizeClaim.receiver_phone')
                     ->label('电话')
+                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->receiver_phone)
                     ->placeholder('-'),
                 TextEntry::make('prizeClaim.receiver_address')
                     ->label('地址')
+                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->receiver_address)
+                    ->placeholder('-'),
+                TextEntry::make('prizeClaim.pickup_address')
+                    ->label('线下领取地址')
+                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->pickup_address)
                     ->placeholder('-'),
                 TextEntry::make('drawn_at')
                     ->label('开奖时间')

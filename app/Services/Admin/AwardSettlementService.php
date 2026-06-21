@@ -168,13 +168,13 @@ class AwardSettlementService
             ->groupBy('user_id')
             ->pluck('votes_count', 'user_id');
 
-        $winnerIds = $this->winnerIdsForLevel(AwardLevels::FRAGRANCE_VOTE);
+        $drawnUserIds = $this->drawnUserIdsForLevel(AwardLevels::FRAGRANCE_VOTE);
 
         return User::query()
             ->orderBy('employee_no')
             ->orderBy('id')
             ->get()
-            ->map(function (User $user) use ($voteCounts, $winnerIds): array {
+            ->map(function (User $user) use ($voteCounts, $drawnUserIds): array {
                 $weight = (int) ($voteCounts[$user->id] ?? 0);
                 $reasons = [];
 
@@ -182,7 +182,7 @@ class AwardSettlementService
                     $reasons[] = '未为他人投票';
                 }
 
-                if (in_array($user->id, $winnerIds, true)) {
+                if (in_array($user->id, $drawnUserIds, true)) {
                     $reasons[] = '已获得手有余香奖';
                 }
 
@@ -206,7 +206,7 @@ class AwardSettlementService
             ->filter(fn (array $row): bool => $row['eligible'])
             ->map(fn (array $row): array => [
                 ...$row,
-                'chance_count' => $row['weight'],
+                'chance_count' => 1,
             ])
             ->values()
             ->all();
@@ -220,7 +220,7 @@ class AwardSettlementService
         return $this->publishQualifications(
             AwardLevels::FRAGRANCE_VOTE,
             $this->previewFragranceQualifications(),
-            fn (array $row): int => (int) $row['chance_count'],
+            fn (): int => 1,
         );
     }
 
@@ -236,13 +236,13 @@ class AwardSettlementService
             ->all();
         $usersWithGame = GameRecord::query()->pluck('user_id')->unique()->all();
         $usersWithVote = WorkVote::query()->pluck('user_id')->unique()->all();
-        $winnerIds = $this->winnerIdsForLevel(AwardLevels::DREAM_PARK);
+        $drawnUserIds = $this->drawnUserIdsForLevel(AwardLevels::DREAM_PARK);
 
         return User::query()
             ->orderBy('employee_no')
             ->orderBy('id')
             ->get()
-            ->map(function (User $user) use ($usersWithPublishedWork, $usersWithGame, $usersWithVote, $winnerIds): array {
+            ->map(function (User $user) use ($usersWithPublishedWork, $usersWithGame, $usersWithVote, $drawnUserIds): array {
                 $reasons = [];
 
                 if (! in_array($user->id, $usersWithPublishedWork, true)) {
@@ -257,7 +257,7 @@ class AwardSettlementService
                     $reasons[] = '未为他人投票';
                 }
 
-                if (in_array($user->id, $winnerIds, true)) {
+                if (in_array($user->id, $drawnUserIds, true)) {
                     $reasons[] = '已获得逐梦乐园奖';
                 }
 
@@ -415,6 +415,19 @@ class AwardSettlementService
         return LotteryRecord::query()
             ->where('result_status', LotteryResultStatus::Won->value)
             ->whereHas('prize', fn ($query) => $query->where('level', $level))
+            ->pluck('user_id')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function drawnUserIdsForLevel(string $level): array
+    {
+        return LotteryRecord::query()
+            ->where('source_type', $level)
             ->pluck('user_id')
             ->unique()
             ->values()

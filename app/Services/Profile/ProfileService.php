@@ -19,6 +19,7 @@ class ProfileService
             'name' => $user->name,
             'phone' => $user->phone,
             'address' => $user->address,
+            'city' => $user->city,
             'registrationStatus' => $registration?->audit_status ?? RegistrationAuditStatus::Draft->value,
             'workCount' => $user->works()->count(),
             'prizeCount' => 0,

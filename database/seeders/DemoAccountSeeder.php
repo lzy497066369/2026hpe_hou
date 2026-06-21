@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -19,7 +19,7 @@ class DemoAccountSeeder extends Seeder
                 'email' => 'user1001@example.com',
                 'nickname' => '像素筑梦用户1',
                 'phone' => '13810001001',
-                'address' => '上海',
+                'city' => '上海',
                 'role' => 'user',
             ],
             [
@@ -28,7 +28,7 @@ class DemoAccountSeeder extends Seeder
                 'email' => 'user1002@example.com',
                 'nickname' => '像素筑梦用户2',
                 'phone' => '13810001002',
-                'address' => '北京',
+                'city' => '北京',
                 'role' => 'user',
             ],
             [
@@ -37,7 +37,7 @@ class DemoAccountSeeder extends Seeder
                 'email' => 'user1003@example.com',
                 'nickname' => '像素筑梦用户3',
                 'phone' => '13810001003',
-                'address' => '广州',
+                'city' => '广州',
                 'role' => 'user',
             ],
             [
@@ -46,7 +46,7 @@ class DemoAccountSeeder extends Seeder
                 'email' => 'user1004@example.com',
                 'nickname' => '像素筑梦用户4',
                 'phone' => '13810001004',
-                'address' => '深圳',
+                'city' => '深圳',
                 'role' => 'user',
             ],
             [
@@ -55,7 +55,7 @@ class DemoAccountSeeder extends Seeder
                 'email' => 'child1005@example.com',
                 'nickname' => '小画家家长',
                 'phone' => '13810001005',
-                'address' => '杭州',
+                'city' => '杭州',
                 'role' => 'user',
             ],
             [
@@ -64,7 +64,7 @@ class DemoAccountSeeder extends Seeder
                 'email' => 'staff1006@example.com',
                 'nickname' => '员工绘趣',
                 'phone' => '13810001006',
-                'address' => '成都',
+                'city' => '成都',
                 'role' => 'user',
             ],
             [
@@ -73,7 +73,7 @@ class DemoAccountSeeder extends Seeder
                 'email' => 'admin1001@example.com',
                 'nickname' => '像素筑梦管理员',
                 'phone' => '13810001999',
-                'address' => '上海',
+                'city' => '上海',
                 'role' => 'admin',
             ],
         ];

@@ -12,7 +12,7 @@ Route::get('/', function () {
         return response()->json([
             'status' => 'ok',
             'service' => '2026-hpe-api',
-            'version' => '3.0.0',
+            'version' => '3.1.0',
             'database' => [
                 'driver' => 'mysql',
                 'connected' => true,
@@ -25,7 +25,7 @@ Route::get('/', function () {
         return response()->json([
             'status' => 'error',
             'service' => '2026-hpe-api',
-            'version' => '3.0.0',
+            'version' => '3.1.0',
             'database' => [
                 'driver' => 'mysql',
                 'connected' => false,

@@ -23,7 +23,7 @@ class EmployeeController extends Controller
                 $query->where('name', 'like', "%{$keyword}%")
                     ->orWhere('employee_no', 'like', "%{$keyword}%")
                     ->orWhere('email', 'like', "%{$keyword}%")
-                    ->orWhere('address', 'like', "%{$keyword}%")
+                    ->orWhere('city', 'like', "%{$keyword}%")
                     ->orWhere('work_address_code', 'like', "%{$keyword}%");
             });
         }
@@ -41,7 +41,7 @@ class EmployeeController extends Controller
             'email' => ['required', 'email', 'max:255'],
             'nickname' => ['nullable', 'string', 'max:100'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'address' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
             'workAddressCode' => ['nullable', 'string', 'max:100'],
             'role' => ['nullable', 'in:user,admin'],
         ]);
@@ -52,7 +52,7 @@ class EmployeeController extends Controller
             'email' => $data['email'],
             'nickname' => $data['nickname'] ?? null,
             'phone' => $data['phone'] ?? null,
-            'address' => $data['address'] ?? null,
+            'city' => $data['city'] ?? null,
             'work_address_code' => $data['workAddressCode'] ?? null,
             'role' => $data['role'] ?? 'user',
             'password' => 'unused',
@@ -72,13 +72,21 @@ class EmployeeController extends Controller
             'email' => ['sometimes', 'required', 'email', 'max:255'],
             'nickname' => ['nullable', 'string', 'max:100'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'address' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
             'workAddressCode' => ['nullable', 'string', 'max:100'],
             'status' => ['sometimes', 'in:active,disabled'],
             'role' => ['sometimes', 'in:user,admin'],
         ]);
 
-        $mappedData = collect($data)->all();
+        $mappedData = collect($data)
+            ->mapWithKeys(function ($value, string $key): array {
+                return match ($key) {
+                    'employeeNo' => ['employee_no' => $value],
+                    'workAddressCode' => ['work_address_code' => $value],
+                    default => [$key => $value],
+                };
+            })
+            ->all();
 
         $user->fill($mappedData)->save();
 
@@ -100,9 +108,9 @@ class EmployeeController extends Controller
 
         return response()->streamDownload(function (): void {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['id', 'preferred_name', 'name', 'employee_no', 'email', 'nickname', 'phone', 'address', 'work_address_code', 'role', 'status']);
+            fputcsv($out, ['id', 'preferred_name', 'name', 'employee_no', 'email', 'nickname', 'phone', 'city', 'work_address_code', 'role', 'status']);
             User::query()->orderBy('id')->each(function (User $user) use ($out): void {
-                fputcsv($out, [$user->id, AdminDisplay::preferredName($user), $user->name, $user->employee_no, $user->email, $user->nickname, $user->phone, $user->address, $user->work_address_code, $user->role, $user->status]);
+                fputcsv($out, [$user->id, AdminDisplay::preferredName($user), $user->name, $user->employee_no, $user->email, $user->nickname, $user->phone, $user->city, $user->work_address_code, $user->role, $user->status]);
             });
             fclose($out);
         }, 'employees.csv');
@@ -127,7 +135,7 @@ class EmployeeController extends Controller
             'email' => $user->email,
             'nickname' => $user->nickname,
             'phone' => $user->phone,
-            'address' => $user->address,
+            'city' => $user->city,
             'workAddressCode' => $user->work_address_code,
             'role' => $user->role,
             'status' => $user->status,

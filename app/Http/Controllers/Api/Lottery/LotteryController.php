@@ -41,4 +41,9 @@ class LotteryController extends Controller
             $service->myPrizes($resolver->require($request))
         );
     }
+
+    public function announcements(LotteryService $service): JsonResponse
+    {
+        return ApiResponse::success($service->announcements());
+    }
 }

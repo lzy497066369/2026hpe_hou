@@ -26,7 +26,7 @@ class UserInfolist
                 TextEntry::make('phone')
                     ->label('电话')
                     ->placeholder('-'),
-                TextEntry::make('address')
+                TextEntry::make('city')
                     ->label('工作城市')
                     ->placeholder('-'),
                 TextEntry::make('work_address_code')

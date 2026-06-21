@@ -25,13 +25,13 @@ class AdminTableEnhancementTest extends TestCase
             'name' => 'Preferred Name',
             'email' => 'preferred@example.com',
             'employee_no' => 'E9001',
-            'address' => 'Shanghai',
+            'city' => 'Shanghai',
             'work_address_code' => 'SHA-01',
             'password' => 'secret',
         ]);
 
         $this->assertSame('Preferred Name', AdminDisplay::preferredName($user));
-        $this->assertSame('Shanghai', $user->address);
+        $this->assertSame('Shanghai', $user->city);
         $this->assertSame('SHA-01', $user->work_address_code);
     }
 
@@ -50,7 +50,7 @@ class AdminTableEnhancementTest extends TestCase
     {
         $this->assertSame('邮寄', AdminDisplay::claimType('shipping'));
         $this->assertSame('现场领取', AdminDisplay::claimType('pickup'));
-        $this->assertSame('现场领取', AdminDisplay::claimType(null));
+        $this->assertSame('未填写', AdminDisplay::claimType(null));
     }
 
     public function test_admin_exports_default_to_csv_only(): void
@@ -98,13 +98,14 @@ class AdminTableEnhancementTest extends TestCase
         $this->assertContains('prizeClaim.receiver_name', $columnNames);
         $this->assertContains('prizeClaim.receiver_phone', $columnNames);
         $this->assertContains('prizeClaim.receiver_address', $columnNames);
-        $this->assertContains('user.address', $columnNames);
+        $this->assertContains('prizeClaim.pickup_address', $columnNames);
+        $this->assertContains('user.city', $columnNames);
         $this->assertContains('user.work_address_code', $columnNames);
         $this->assertContains('user.email', $columnNames);
         $this->assertContains('user.employee_no', $columnNames);
     }
 
-    public function test_lottery_claim_type_column_allows_default_pickup_display(): void
+    public function test_lottery_claim_type_column_uses_admin_display_formatter(): void
     {
         $tableSource = file_get_contents(base_path('app/Filament/Resources/LotteryRecords/Tables/LotteryRecordsTable.php'));
         $infolistSource = file_get_contents(base_path('app/Filament/Resources/LotteryRecords/Schemas/LotteryRecordInfolist.php'));
@@ -118,9 +119,10 @@ class AdminTableEnhancementTest extends TestCase
             ->toString();
 
         $this->assertStringContainsString('AdminDisplay::claimType', $tableClaimTypeBlock);
-        $this->assertStringNotContainsString("->placeholder('-')", $tableClaimTypeBlock);
         $this->assertStringContainsString('AdminDisplay::claimType', $infolistClaimTypeBlock);
-        $this->assertStringNotContainsString("->placeholder('-')", $infolistClaimTypeBlock);
+
+        $this->assertStringContainsString('$record->prizeClaim?->pickup_address', $tableSource);
+        $this->assertStringContainsString('$record->prizeClaim?->pickup_address', $infolistSource);
     }
 
     public function test_admin_overview_hides_removed_summary_cards(): void
@@ -148,19 +150,51 @@ class AdminTableEnhancementTest extends TestCase
             'nickname' => $admin->nickname,
         ])->json('data.token');
 
-        $this->withHeader('Authorization', 'Bearer '.$token)
+        $createResponse = $this->withHeader('Authorization', 'Bearer '.$token)
             ->postJson('/api/v1/admin/employees', [
                 'name' => 'Preferred Name',
                 'employeeNo' => 'E9100',
                 'email' => 'employee-api@example.com',
-                'address' => 'Shanghai',
+                'city' => 'Shanghai',
                 'workAddressCode' => 'SHA-01',
             ])
             ->assertOk()
             ->assertJsonPath('data.preferredName', 'Preferred Name')
             ->assertJsonPath('data.name', 'Preferred Name')
-            ->assertJsonPath('data.address', 'Shanghai')
+            ->assertJsonPath('data.city', 'Shanghai')
             ->assertJsonPath('data.workAddressCode', 'SHA-01');
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->patchJson('/api/v1/admin/employees/'.$createResponse->json('data.id'), [
+                'city' => 'Beijing',
+                'workAddressCode' => 'BJS-02',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.city', 'Beijing')
+            ->assertJsonPath('data.workAddressCode', 'BJS-02');
+    }
+
+    public function test_work_admin_table_contains_city_email_and_city_code_columns(): void
+    {
+        $source = file_get_contents(base_path('app/Filament/Resources/Works/Tables/WorksTable.php'));
+
+        $this->assertStringContainsString("TextColumn::make('user.email')", $source);
+        $this->assertStringContainsString("TextColumn::make('user.city')", $source);
+        $this->assertStringContainsString("->label('城市')", $source);
+        $this->assertStringContainsString("TextColumn::make('user.work_address_code')", $source);
+        $this->assertStringContainsString("->label('code（城市code）')", $source);
+    }
+
+    public function test_work_exporter_contains_city_email_and_city_code_columns(): void
+    {
+        $exporter = new WorkExporter(new \Filament\Actions\Exports\Models\Export, [], []);
+        $columnNames = collect($exporter->getColumns())
+            ->map(fn ($column) => $column->getName())
+            ->all();
+
+        $this->assertContains('user.email', $columnNames);
+        $this->assertContains('user.city', $columnNames);
+        $this->assertContains('user.work_address_code', $columnNames);
     }
 
     public function test_bulk_approve_updates_selected_works_to_published_state(): void

@@ -46,8 +46,15 @@ class WorksTable
                     ->searchable(),
                 TextColumn::make('user.email')
                     ->label('邮箱')
+                    ->searchable(),
+                TextColumn::make('user.city')
+                    ->label('城市')
                     ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->placeholder('-'),
+                TextColumn::make('user.work_address_code')
+                    ->label('code（城市code）')
+                    ->searchable()
+                    ->placeholder('-'),
                 TextColumn::make('user.nickname')
                     ->label('昵称')
                     ->searchable(),

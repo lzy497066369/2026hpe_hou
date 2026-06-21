@@ -34,6 +34,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::get('/lottery/qualification', [LotteryController::class, 'qualification']);
     Route::post('/lottery/draw', [LotteryController::class, 'draw']);
+    Route::get('/lottery/announcements', [LotteryController::class, 'announcements']);
     Route::get('/lottery/prizes/mine', [LotteryController::class, 'myPrizes']);
     Route::post('/lottery/records/{recordId}/claim', [LotteryController::class, 'claim']);
 

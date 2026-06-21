@@ -17,6 +17,7 @@ class ProfileSummaryResource extends JsonResource
             'name' => $this->resource['name'],
             'phone' => $this->resource['phone'] ?? null,
             'address' => $this->resource['address'] ?? null,
+            'city' => $this->resource['city'] ?? null,
             'registrationStatus' => $this->resource['registrationStatus'],
             'workCount' => $this->resource['workCount'],
             'prizeCount' => $this->resource['prizeCount'],

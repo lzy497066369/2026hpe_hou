@@ -165,17 +165,20 @@ class AwardSettlementServiceTest extends TestCase
         $voter = User::factory()->create(['employee_no' => 'E3001']);
         $noVote = User::factory()->create(['employee_no' => 'E3002']);
         $alreadyWon = User::factory()->create(['employee_no' => 'E3003']);
+        $alreadyDrawn = User::factory()->create(['employee_no' => 'E3004']);
         $target = User::factory()->create();
         $targetWork = $this->createWork($target);
 
         $this->createVotes($voter, $targetWork, 3);
         $this->createVotes($alreadyWon, $targetWork, 1);
+        $this->createVotes($alreadyDrawn, $targetWork, 2);
         $this->createWonRecord($alreadyWon, Prize::query()->create([
             'name' => '手有余香奖',
             'level' => AwardLevels::FRAGRANCE_VOTE,
             'stock' => 10,
             'status' => 'active',
         ]));
+        $this->createLostRecord($alreadyDrawn, AwardLevels::FRAGRANCE_VOTE);
 
         $candidates = collect(app(AwardSettlementService::class)->fragranceCandidates())->keyBy('user_id');
 
@@ -185,6 +188,7 @@ class AwardSettlementServiceTest extends TestCase
         $this->assertSame('未为他人投票', $candidates[$noVote->id]['reason']);
         $this->assertFalse($candidates[$alreadyWon->id]['eligible']);
         $this->assertSame('已获得手有余香奖', $candidates[$alreadyWon->id]['reason']);
+        $this->assertFalse($candidates[$alreadyDrawn->id]['eligible']);
     }
 
     public function test_dream_park_candidates_show_missing_reasons_and_allow_existing_top_winners(): void
@@ -217,7 +221,7 @@ class AwardSettlementServiceTest extends TestCase
         $this->assertSame('未发布作品', $candidates[$missingWork->id]['reason']);
     }
 
-    public function test_publish_fragrance_qualifications_creates_weighted_records_and_is_idempotent(): void
+    public function test_publish_fragrance_qualifications_creates_one_chance_per_user_and_is_idempotent(): void
     {
         $eligible = User::factory()->create(['employee_no' => 'E5001']);
         $noVote = User::factory()->create(['employee_no' => 'E5002']);
@@ -246,7 +250,7 @@ class AwardSettlementServiceTest extends TestCase
             'user_id' => $eligible->id,
             'source_type' => AwardLevels::FRAGRANCE_VOTE,
             'qualified' => true,
-            'chance_count' => 3,
+            'chance_count' => 1,
             'used_count' => 0,
         ]);
         $this->assertDatabaseMissing('lottery_qualifications', [
@@ -265,10 +269,11 @@ class AwardSettlementServiceTest extends TestCase
         $topWinner = User::factory()->create(['employee_no' => 'E6002']);
         $missingWork = User::factory()->create(['employee_no' => 'E6003']);
         $alreadyWon = User::factory()->create(['employee_no' => 'E6004']);
+        $alreadyDrawn = User::factory()->create(['employee_no' => 'E6005']);
         $target = User::factory()->create();
         $targetWork = $this->createWork($target);
 
-        foreach ([$eligible, $topWinner, $alreadyWon] as $user) {
+        foreach ([$eligible, $topWinner, $alreadyWon, $alreadyDrawn] as $user) {
             $this->createWork($user);
             $this->createGameRecord($user);
             $this->createVotes($user, $targetWork, 1);
@@ -289,6 +294,7 @@ class AwardSettlementServiceTest extends TestCase
             'stock' => 3,
             'status' => 'active',
         ]));
+        $this->createLostRecord($alreadyDrawn, AwardLevels::DREAM_PARK);
 
         $result = app(AwardSettlementService::class)->publishDreamParkQualifications();
 
@@ -303,7 +309,7 @@ class AwardSettlementServiceTest extends TestCase
                 'used_count' => 0,
             ]);
         }
-        foreach ([$missingWork, $alreadyWon] as $user) {
+        foreach ([$missingWork, $alreadyWon, $alreadyDrawn] as $user) {
             $this->assertDatabaseMissing('lottery_qualifications', [
                 'user_id' => $user->id,
                 'source_type' => AwardLevels::DREAM_PARK,
@@ -359,6 +365,16 @@ class AwardSettlementServiceTest extends TestCase
             'prize_id' => $prize->id,
             'source_type' => $prize->level,
             'result_status' => LotteryResultStatus::Won->value,
+            'drawn_at' => now(),
+        ]);
+    }
+
+    private function createLostRecord(User $user, string $sourceType): LotteryRecord
+    {
+        return LotteryRecord::query()->create([
+            'user_id' => $user->id,
+            'source_type' => $sourceType,
+            'result_status' => LotteryResultStatus::Lost->value,
             'drawn_at' => now(),
         ]);
     }

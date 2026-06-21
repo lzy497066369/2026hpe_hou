@@ -16,6 +16,7 @@ class PrizeClaim extends Model
         'pickup_name',
         'pickup_phone',
         'pickup_employee_no',
+        'pickup_address',
         'pickup_remark',
         'claim_status',
     ];

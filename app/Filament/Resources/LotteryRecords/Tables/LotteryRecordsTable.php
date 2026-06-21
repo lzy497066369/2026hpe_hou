@@ -39,7 +39,7 @@ class LotteryRecordsTable
                     ->label('邮箱')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('user.address')
+                TextColumn::make('user.city')
                     ->label('城市')
                     ->searchable()
                     ->placeholder('-'),
@@ -60,6 +60,7 @@ class LotteryRecordsTable
                     ->formatStateUsing(fn (?string $state): string => AdminDisplay::lotteryStatus($state)),
                 TextColumn::make('prizeClaim.claim_status')
                     ->label('领奖状态')
+                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->claim_status)
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => AdminDisplay::claimStatus($state))
                     ->placeholder('-'),
@@ -68,12 +69,20 @@ class LotteryRecordsTable
                     ->getStateUsing(fn ($record): string => AdminDisplay::claimType($record->prizeClaim?->claim_type)),
                 TextColumn::make('prizeClaim.receiver_name')
                     ->label('姓名')
+                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->receiver_name)
                     ->placeholder('-'),
                 TextColumn::make('prizeClaim.receiver_phone')
                     ->label('电话')
+                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->receiver_phone)
                     ->placeholder('-'),
                 TextColumn::make('prizeClaim.receiver_address')
                     ->label('地址')
+                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->receiver_address)
+                    ->limit(32)
+                    ->placeholder('-'),
+                TextColumn::make('prizeClaim.pickup_address')
+                    ->label('线下领取地址')
+                    ->getStateUsing(fn ($record): ?string => $record->prizeClaim?->pickup_address)
                     ->limit(32)
                     ->placeholder('-'),
                 TextColumn::make('drawn_at')

@@ -26,6 +26,7 @@ class SubmitPrizeClaimRequest extends FormRequest
             'pickupName' => ['required_if:claimType,pickup', 'nullable', 'string', 'max:100'],
             'pickupPhone' => ['required_if:claimType,pickup', 'nullable', 'string', 'max:30'],
             'pickupEmployeeNo' => ['nullable', 'string', 'max:50'],
+            'pickupAddress' => ['required_if:claimType,pickup', 'nullable', 'string', 'max:255'],
             'pickupRemark' => ['nullable', 'string', 'max:255'],
         ];
     }

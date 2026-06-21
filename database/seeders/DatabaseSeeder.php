@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
                 'email' => 'demo@example.com',
                 'nickname' => 'demo',
                 'phone' => '13800000000',
-                'address' => 'Shanghai',
+                'city' => 'Shanghai',
                 'password' => 'unused',
                 'status' => 'active',
             ]
@@ -42,7 +42,7 @@ class DatabaseSeeder extends Seeder
                 'email' => 'author@example.com',
                 'nickname' => 'author',
                 'phone' => '13900000000',
-                'address' => 'Shanghai',
+                'city' => 'Shanghai',
                 'password' => 'unused',
                 'status' => 'active',
             ]
@@ -55,7 +55,7 @@ class DatabaseSeeder extends Seeder
                 'email' => 'admin@example.com',
                 'nickname' => 'admin',
                 'phone' => '13700000000',
-                'address' => 'Shanghai',
+                'city' => 'Shanghai',
                 'password' => 'unused',
                 'status' => 'active',
                 'role' => 'admin',

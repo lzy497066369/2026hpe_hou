@@ -30,7 +30,7 @@ class UserFactory extends Factory
             'employee_no' => fake()->unique()->numerify('E####'),
             'nickname' => fake()->userName(),
             'phone' => fake()->phoneNumber(),
-            'address' => fake()->address(),
+            'city' => fake()->city(),
             'status' => 'active',
             'role' => 'user',
             'email_verified_at' => now(),

@@ -23,7 +23,7 @@ class UsersExporter extends Exporter
             ExportColumn::make('employee_no')->label('员工号'),
             ExportColumn::make('nickname')->label('昵称'),
             ExportColumn::make('phone')->label('电话'),
-            ExportColumn::make('address')->label('工作城市'),
+            ExportColumn::make('city')->label('工作城市'),
             ExportColumn::make('work_address_code')->label('工作地址代码'),
             ExportColumn::make('status')->label('状态')
                 ->formatStateUsing(fn (?string $state): string => AdminDisplay::userStatus($state)),

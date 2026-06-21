@@ -49,7 +49,7 @@ class UsersTable
                 TextColumn::make('phone')
                     ->label('电话')
                     ->searchable(),
-                TextColumn::make('address')
+                TextColumn::make('city')
                     ->label('工作城市')
                     ->limit(24)
                     ->searchable(),

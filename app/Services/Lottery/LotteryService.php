@@ -48,12 +48,20 @@ class LotteryService
             ];
         }
 
-        if ($qualification->qualified && $qualification->used_count >= $qualification->chance_count) {
+        $hasDrawn = LotteryRecord::query()
+            ->where('user_id', $user->id)
+            ->where('source_type', $qualification->source_type)
+            ->exists();
+        $usedCount = $hasDrawn
+            ? max($qualification->used_count, $qualification->chance_count)
+            : $qualification->used_count;
+
+        if ($qualification->qualified && $usedCount >= $qualification->chance_count) {
             $reason = 'chance_used_up';
         }
 
         if (! $qualification->qualified) {
-            $reason = $qualification->used_count >= $qualification->chance_count
+            $reason = $usedCount >= $qualification->chance_count
                 ? 'chance_used_up'
                 : 'qualification_not_published';
         }
@@ -62,7 +70,7 @@ class LotteryService
             'sourceType' => $qualification->source_type,
             'qualified' => $qualification->qualified,
             'chanceCount' => $qualification->chance_count,
-            'usedCount' => $qualification->used_count,
+            'usedCount' => $usedCount,
             'reason' => $reason,
         ];
     }
@@ -85,6 +93,14 @@ class LotteryService
 
                 abort_if($alreadyWon, 422, '该奖项已中奖');
 
+                $alreadyDrawn = LotteryRecord::query()
+                    ->where('user_id', $user->id)
+                    ->where('source_type', $sourceType)
+                    ->lockForUpdate()
+                    ->exists();
+
+                abort_if($alreadyDrawn, 422, '抽奖次数不足');
+
                 $qualification = LotteryQualification::query()
                     ->where('user_id', $user->id)
                     ->where('source_type', $sourceType)
@@ -98,7 +114,9 @@ class LotteryService
                     '抽奖次数不足'
                 );
 
-                $qualification->increment('used_count');
+                $qualification->forceFill([
+                    'used_count' => $qualification->chance_count,
+                ])->save();
 
                 $prize = Prize::query()
                     ->where('level', $sourceType)
@@ -148,6 +166,7 @@ class LotteryService
                 'pickup_name' => $payload['pickupName'] ?? null,
                 'pickup_phone' => $payload['pickupPhone'] ?? null,
                 'pickup_employee_no' => $payload['pickupEmployeeNo'] ?? null,
+                'pickup_address' => $payload['pickupAddress'] ?? null,
                 'pickup_remark' => $payload['pickupRemark'] ?? null,
             ]
         );
@@ -160,6 +179,7 @@ class LotteryService
             'pickupName' => $payload['pickupName'] ?? null,
             'pickupPhone' => $payload['pickupPhone'] ?? null,
             'pickupEmployeeNo' => $payload['pickupEmployeeNo'] ?? null,
+            'pickupAddress' => $payload['pickupAddress'] ?? null,
             'pickupRemark' => $payload['pickupRemark'] ?? null,
         ];
     }
@@ -214,10 +234,56 @@ class LotteryService
                     'pickupName' => $claim?->pickup_name,
                     'pickupPhone' => $claim?->pickup_phone,
                     'pickupEmployeeNo' => $claim?->pickup_employee_no,
+                    'pickupAddress' => $claim?->pickup_address,
                     'pickupRemark' => $claim?->pickup_remark,
                 ];
             })
             ->all();
+    }
+
+    /**
+     * @return array<string, array<int, array<string, string>>>
+     */
+    public function announcements(): array
+    {
+        return [
+            'fragrance' => $this->announcementRows(AwardLevels::FRAGRANCE_VOTE),
+            'dream' => $this->announcementRows(AwardLevels::DREAM_PARK),
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, string>>
+     */
+    private function announcementRows(string $level): array
+    {
+        return LotteryRecord::query()
+            ->with(['user', 'prize'])
+            ->where('result_status', LotteryResultStatus::Won->value)
+            ->whereHas('prize', fn ($query) => $query->where('level', $level))
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn (LotteryRecord $record): array => [
+                'id' => (string) $record->id,
+                'nickname' => $record->user?->nickname ?: $record->user?->name ?: 'HPER',
+                'employeeNo' => $this->maskEmployeeNo((string) ($record->user?->employee_no ?? '')),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function maskEmployeeNo(string $employeeNo): string
+    {
+        if ($employeeNo === '') {
+            return '';
+        }
+
+        $length = mb_strlen($employeeNo);
+        if ($length <= 4) {
+            return str_repeat('X', max($length, 1));
+        }
+
+        return str_repeat('X', $length - 4).mb_substr($employeeNo, -4);
     }
 
     /**
@@ -274,6 +340,15 @@ class LotteryService
 
     private function qualificationMissingReason(?string $sourceType): string
     {
-        return 'qualification_not_published';
+        if ($sourceType === null) {
+            return 'qualification_not_published';
+        }
+
+        $publishedExists = LotteryQualification::query()
+            ->where('source_type', $sourceType)
+            ->where('qualified', true)
+            ->exists();
+
+        return $publishedExists ? 'qualification_not_qualified' : 'qualification_not_published';
     }
 }
