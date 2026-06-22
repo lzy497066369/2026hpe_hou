@@ -199,6 +199,7 @@ class ExtendedApiTest extends TestCase
                     'gamePlayTotalCount',
                 ],
             ])
+            ->assertJsonPath('data.loginUserCount', 2)
             ->assertJsonPath('data.todayGamePlayCount', 1)
             ->assertJsonPath('data.todayWorkUploadCount', 1)
             ->assertJsonPath('data.todayLoginUserCount', 1)
@@ -243,6 +244,7 @@ class ExtendedApiTest extends TestCase
         $this->withHeaders(['Authorization' => 'Bearer '.$token])
             ->getJson('/api/v1/admin/statistics/overview')
             ->assertOk()
+            ->assertJsonPath('data.loginUserCount', 0)
             ->assertJsonPath('data.todayLoginUserCount', 0);
     }
 

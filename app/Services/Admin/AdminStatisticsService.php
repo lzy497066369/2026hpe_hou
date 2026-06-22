@@ -54,7 +54,7 @@ class AdminStatisticsService
             ->all();
 
         return [
-            'loginUserCount' => User::query()->count(),
+            'loginUserCount' => $this->loginUserCount(),
             'workParticipantCount' => Work::query()->distinct('user_id')->count('user_id'),
             'workTotalCount' => Work::query()->count(),
             'workCountsByTrack' => $workCountsByTrack,
@@ -136,6 +136,17 @@ class AdminStatisticsService
             ->where('publish_status', WorkPublishStatus::Published->value)
             ->whereNotIn('user_id', $excludedUserIds)
             ->whereHas('user.gameRecords')
+            ->count();
+    }
+
+    private function loginUserCount(): int
+    {
+        if (! $this->lastLoginAtExists()) {
+            return 0;
+        }
+
+        return (int) User::query()
+            ->whereNotNull('last_login_at')
             ->count();
     }
 
