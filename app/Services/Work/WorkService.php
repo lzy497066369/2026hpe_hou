@@ -9,7 +9,6 @@ use App\Models\UploadedFile;
 use App\Models\User;
 use App\Models\Work;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class WorkService
@@ -248,19 +247,30 @@ class WorkService
      */
     private function listByKeywordWithSerial(Builder $query, int $page, int $pageSize, string $keyword): array
     {
-        $works = $this->applyListOrder($query)
-            ->get()
-            ->values();
+        $normalizedKeyword = $this->normalizeSearchText($keyword);
+        $escapedKeyword = $this->escapeLike($normalizedKeyword);
 
-        $matchedWorks = $works
-            ->map(fn (Work $work, int $index): array => [
-                'work' => $work,
-                'serial' => (int) $work->id,
-            ])
-            ->filter(fn (array $item): bool => $this->matchesKeywordWithSerial($item['serial'], $keyword))
-            ->values();
+        $this->applyListOrder($query);
 
-        return $this->formatPaginatedCollection($matchedWorks, $page, $pageSize);
+        $paginator = $query
+            ->whereRaw(
+                $this->serialSearchExpression()." LIKE ? ESCAPE '\\'",
+                ['%'.$escapedKeyword.'%']
+            )
+            ->paginate($pageSize, ['*'], 'page', $page);
+
+        return [
+            'items' => $paginator->getCollection()
+                ->values()
+                ->map(fn (Work $work): array => $this->formatWork($work))
+                ->all(),
+            'pagination' => [
+                'page' => $paginator->currentPage(),
+                'pageSize' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'hasMore' => $paginator->hasMorePages(),
+            ],
+        ];
     }
 
     /**
@@ -275,49 +285,27 @@ class WorkService
             ->orderByDesc('id');
     }
 
-    private function matchesKeywordWithSerial(int $serial, string $keyword): bool
-    {
-        $normalizedKeyword = $this->normalizeSearchText($keyword);
-        $serialLabel = str_pad((string) $serial, 3, '0', STR_PAD_LEFT);
-        $searchableText = $this->normalizeSearchText(implode(' ', [
-            (string) $serial,
-            $serialLabel,
-            '#'.$serial,
-            '#'.$serialLabel,
-        ]));
-
-        return str_contains($searchableText, $normalizedKeyword);
-    }
-
     private function normalizeSearchText(string $text): string
     {
         return mb_strtolower(trim($text));
     }
 
-    /**
-     * @param Collection<int, array{work: Work, serial: int}> $works
-     * @return array<string, mixed>
-     */
-    private function formatPaginatedCollection(Collection $works, int $page, int $pageSize): array
+    private function serialSearchExpression(): string
     {
-        $safePage = max(1, $page);
-        $safePageSize = max(1, $pageSize);
-        $total = $works->count();
-        $offset = ($safePage - 1) * $safePageSize;
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "lower(CAST(id AS TEXT) || ' ' || printf('%03d', id) || ' #' || CAST(id AS TEXT) || ' #' || printf('%03d', id))",
+            'pgsql' => "lower(CAST(id AS TEXT) || ' ' || lpad(CAST(id AS TEXT), 3, '0') || ' #' || CAST(id AS TEXT) || ' #' || lpad(CAST(id AS TEXT), 3, '0'))",
+            default => "LOWER(CONCAT(CAST(id AS CHAR), ' ', LPAD(CAST(id AS CHAR), 3, '0'), ' #', CAST(id AS CHAR), ' #', LPAD(CAST(id AS CHAR), 3, '0')))",
+        };
+    }
 
-        return [
-            'items' => $works
-                ->slice($offset, $safePageSize)
-                ->values()
-                ->map(fn (array $item): array => $this->formatWork($item['work']))
-                ->all(),
-            'pagination' => [
-                'page' => $safePage,
-                'pageSize' => $safePageSize,
-                'total' => $total,
-                'hasMore' => $offset + $safePageSize < $total,
-            ],
-        ];
+    private function escapeLike(string $value): string
+    {
+        return str_replace(
+            ['\\', '%', '_'],
+            ['\\\\', '\\%', '\\_'],
+            $value
+        );
     }
 
     private function availableWorkQuota(User $user): int
