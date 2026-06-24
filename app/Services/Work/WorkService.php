@@ -254,7 +254,7 @@ class WorkService
 
         $paginator = $query
             ->whereRaw(
-                $this->serialSearchExpression()." LIKE ? ESCAPE '\\'",
+                $this->serialSearchExpression().' LIKE ?'.$this->likeEscapeClause(),
                 ['%'.$escapedKeyword.'%']
             )
             ->paginate($pageSize, ['*'], 'page', $page);
@@ -296,6 +296,14 @@ class WorkService
             'sqlite' => "lower(CAST(id AS TEXT) || ' ' || printf('%03d', id) || ' #' || CAST(id AS TEXT) || ' #' || printf('%03d', id))",
             'pgsql' => "lower(CAST(id AS TEXT) || ' ' || lpad(CAST(id AS TEXT), 3, '0') || ' #' || CAST(id AS TEXT) || ' #' || lpad(CAST(id AS TEXT), 3, '0'))",
             default => "LOWER(CONCAT(CAST(id AS CHAR), ' ', LPAD(CAST(id AS CHAR), 3, '0'), ' #', CAST(id AS CHAR), ' #', LPAD(CAST(id AS CHAR), 3, '0')))",
+        };
+    }
+
+    private function likeEscapeClause(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'mysql' => " ESCAPE '\\\\'",
+            default => " ESCAPE '\\'",
         };
     }
 

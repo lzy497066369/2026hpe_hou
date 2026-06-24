@@ -9,6 +9,7 @@ use App\Support\ApiResponse;
 use App\Support\AdminDisplay;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EmployeeController extends Controller
@@ -19,12 +20,15 @@ class EmployeeController extends Controller
 
         $query = User::query()->orderByDesc('created_at');
         if ($keyword = $request->query('keyword')) {
-            $query->where(function ($query) use ($keyword): void {
-                $query->where('name', 'like', "%{$keyword}%")
-                    ->orWhere('employee_no', 'like', "%{$keyword}%")
-                    ->orWhere('email', 'like', "%{$keyword}%")
-                    ->orWhere('city', 'like', "%{$keyword}%")
-                    ->orWhere('work_address_code', 'like', "%{$keyword}%");
+            $keyword = trim((string) $keyword);
+            $likeKeyword = '%'.$this->escapeLike($keyword).'%';
+
+            $query->where(function (Builder $query) use ($likeKeyword): void {
+                $query->where('name', 'like', $likeKeyword)
+                    ->orWhere('employee_no', 'like', $likeKeyword)
+                    ->orWhere('email', 'like', $likeKeyword)
+                    ->orWhere('city', 'like', $likeKeyword)
+                    ->orWhere('work_address_code', 'like', $likeKeyword);
             });
         }
 
@@ -120,6 +124,15 @@ class EmployeeController extends Controller
     {
         $user = $resolver->require($request);
         abort_if($user->role !== 'admin', 403, 'Forbidden.');
+    }
+
+    private function escapeLike(string $value): string
+    {
+        return str_replace(
+            ['\\', '%', '_'],
+            ['\\\\', '\\%', '\\_'],
+            $value
+        );
     }
 
     /**
