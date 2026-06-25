@@ -18,7 +18,7 @@ class ExampleTest extends TestCase
 
         $response
             ->assertJsonPath('service', '2026-hpe-api')
-            ->assertJsonPath('version', '3.6.3')
+            ->assertJsonPath('version', '3.6.4')
             ->assertJsonPath('database.driver', 'mysql')
             ->assertJsonStructure([
                 'status',
