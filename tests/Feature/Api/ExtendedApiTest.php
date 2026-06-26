@@ -7,6 +7,7 @@ use App\Enums\RegistrationAuditStatus;
 use App\Enums\UploadUsageType;
 use App\Enums\WorkGroup;
 use App\Enums\WorkType;
+use App\Models\GamePlayLog;
 use App\Models\GameRecord;
 use App\Models\User;
 use App\Models\Work;
@@ -162,7 +163,28 @@ class ExtendedApiTest extends TestCase
             'duration' => 60,
             'played_at' => now(),
         ]);
+        GamePlayLog::query()->create([
+            'user_id' => $participant->id,
+            'distance' => 1000,
+            'score' => 5000,
+            'duration' => 60,
+            'played_at' => now(),
+        ]);
+        GamePlayLog::query()->create([
+            'user_id' => $participant->id,
+            'distance' => 800,
+            'score' => 3500,
+            'duration' => 55,
+            'played_at' => now(),
+        ]);
         GameRecord::query()->create([
+            'user_id' => $gameParticipant->id,
+            'distance' => 900,
+            'score' => 3000,
+            'duration' => 60,
+            'played_at' => now()->subDay(),
+        ]);
+        GamePlayLog::query()->create([
             'user_id' => $gameParticipant->id,
             'distance' => 900,
             'score' => 3000,
@@ -200,7 +222,7 @@ class ExtendedApiTest extends TestCase
                 ],
             ])
             ->assertJsonPath('data.loginUserCount', 2)
-            ->assertJsonPath('data.todayGamePlayCount', 1)
+            ->assertJsonPath('data.todayGamePlayCount', 2)
             ->assertJsonPath('data.todayWorkUploadCount', 1)
             ->assertJsonPath('data.todayLoginUserCount', 1)
             ->assertJsonPath('data.claimableParticipationAwardCount', 5)
@@ -211,7 +233,9 @@ class ExtendedApiTest extends TestCase
             ->assertJsonPath('data.workUploadTrend.13.date', now()->toDateString())
             ->assertJsonPath('data.workUploadTrend.13.count', 1)
             ->assertJsonPath('data.gamePlayTrend.13.date', now()->toDateString())
-            ->assertJsonPath('data.gamePlayTrend.13.count', 1);
+            ->assertJsonPath('data.gamePlayTrend.13.count', 2)
+            ->assertJsonPath('data.gameParticipantCount', 2)
+            ->assertJsonPath('data.gamePlayTotalCount', 3);
 
         $this->assertSame(WorkPublishStatus::Published->value, $traditionalEmployeeWork->publish_status);
 
@@ -307,11 +331,18 @@ class ExtendedApiTest extends TestCase
             ->assertJsonPath('data.distance', 1100);
 
         $this->assertDatabaseCount('game_records', 1);
+        $this->assertDatabaseCount('game_play_logs', 4);
         $this->assertDatabaseHas('game_records', [
             'user_id' => $user->id,
             'score' => 3600,
             'distance' => 1100,
             'duration' => 70,
+        ]);
+        $this->assertDatabaseHas('game_play_logs', [
+            'user_id' => $user->id,
+            'score' => 2800,
+            'distance' => 900,
+            'duration' => 55,
         ]);
     }
 

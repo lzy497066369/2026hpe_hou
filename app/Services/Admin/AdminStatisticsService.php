@@ -6,6 +6,7 @@ use App\Enums\LotteryResultStatus;
 use App\Enums\WorkGroup;
 use App\Enums\WorkPublishStatus;
 use App\Enums\WorkType;
+use App\Models\GamePlayLog;
 use App\Models\GameRecord;
 use App\Models\LotteryRecord;
 use App\Models\RegistrationProfile;
@@ -58,7 +59,7 @@ class AdminStatisticsService
             'workParticipantCount' => Work::query()->distinct('user_id')->count('user_id'),
             'workTotalCount' => Work::query()->count(),
             'workCountsByTrack' => $workCountsByTrack,
-            'todayGamePlayCount' => $this->countToday(GameRecord::query(), 'played_at', $today),
+            'todayGamePlayCount' => $this->countToday($this->gamePlayQuery(), 'played_at', $today),
             'todayWorkUploadCount' => $this->countToday(Work::query(), 'created_at', $today),
             'todayLoginUserCount' => $this->lastLoginAtExists()
                 ? $this->countToday(User::query(), 'last_login_at', $today)
@@ -68,12 +69,19 @@ class AdminStatisticsService
             'traditionalChildrenWorkCount' => $this->workCountFor(WorkType::Traditional->value, WorkGroup::Children->value),
             'aiEmployeeWorkCount' => $this->workCountFor(WorkType::Ai->value, WorkGroup::Employee->value),
             'aiChildrenWorkCount' => $this->workCountFor(WorkType::Ai->value, WorkGroup::Children->value),
-            'gamePlayTrend' => $this->dailyTrend(GameRecord::query(), 'played_at', $today),
+            'gamePlayTrend' => $this->dailyTrend($this->gamePlayQuery(), 'played_at', $today),
             'workUploadTrend' => $this->dailyTrend(Work::query(), 'created_at', $today),
             'registrationParticipantCount' => RegistrationProfile::query()->count(),
-            'gameParticipantCount' => GameRecord::query()->distinct('user_id')->count('user_id'),
-            'gamePlayTotalCount' => GameRecord::query()->count(),
+            'gameParticipantCount' => $this->gamePlayQuery()->distinct('user_id')->count('user_id'),
+            'gamePlayTotalCount' => $this->gamePlayQuery()->count(),
         ];
+    }
+
+    private function gamePlayQuery()
+    {
+        return DatabaseColumn::tableExists('game_play_logs')
+            ? GamePlayLog::query()
+            : GameRecord::query();
     }
 
     private function countToday($query, string $column, CarbonImmutable $today): int

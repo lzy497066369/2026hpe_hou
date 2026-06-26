@@ -101,6 +101,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(GameRecord::class);
     }
 
+    public function gamePlayLogs()
+    {
+        return $this->hasMany(GamePlayLog::class);
+    }
+
     public function availableWorkQuota(): int
     {
         $approvedExtraQuota = $this->approved_quota_applications_count

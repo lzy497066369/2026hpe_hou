@@ -2,8 +2,10 @@
 
 namespace App\Services\Game;
 
+use App\Models\GamePlayLog;
 use App\Models\GameRecord;
 use App\Models\User;
+use App\Support\DatabaseColumn;
 use Illuminate\Support\Facades\DB;
 
 class GameService
@@ -15,6 +17,18 @@ class GameService
     public function store(User $user, array $payload): array
     {
         $record = DB::transaction(function () use ($user, $payload): GameRecord {
+            $playedAt = now();
+
+            if (DatabaseColumn::tableExists('game_play_logs')) {
+                GamePlayLog::query()->create([
+                    'user_id' => $user->id,
+                    'distance' => $payload['distance'],
+                    'score' => $payload['score'],
+                    'duration' => $payload['duration'],
+                    'played_at' => $playedAt,
+                ]);
+            }
+
             $existing = GameRecord::query()
                 ->where('user_id', $user->id)
                 ->lockForUpdate()
@@ -26,7 +40,7 @@ class GameService
                     'distance' => $payload['distance'],
                     'score' => $payload['score'],
                     'duration' => $payload['duration'],
-                    'played_at' => now(),
+                    'played_at' => $playedAt,
                 ]);
             }
 
@@ -35,7 +49,7 @@ class GameService
                     'distance' => $payload['distance'],
                     'score' => $payload['score'],
                     'duration' => $payload['duration'],
-                    'played_at' => now(),
+                    'played_at' => $playedAt,
                 ])->save();
             }
 
