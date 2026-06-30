@@ -52,8 +52,14 @@ class ExtendedApiTest extends TestCase
             'address' => 'Beijing',
         ])
             ->assertOk()
-            ->assertJsonPath('data.name', 'Updated User')
             ->assertJsonPath('data.phone', '13800000001');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'name' => 'Demo User',
+            'phone' => '13800000001',
+            'address' => 'Beijing',
+        ]);
 
         $fileId = $this->withHeaders($headers)->post('/api/v1/uploads/local', [
             'usageType' => UploadUsageType::WorkContent->value,

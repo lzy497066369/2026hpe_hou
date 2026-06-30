@@ -42,7 +42,6 @@ class ProfileService
     public function update(User $user, array $payload): array
     {
         $user->fill([
-            'name' => $payload['name'] ?? $user->name,
             'phone' => array_key_exists('phone', $payload) ? $payload['phone'] : $user->phone,
             'address' => array_key_exists('address', $payload) ? $payload['address'] : $user->address,
             'claim_type' => array_key_exists('claimType', $payload) ? $payload['claimType'] : $user->claim_type,
