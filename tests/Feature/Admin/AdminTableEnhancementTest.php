@@ -219,6 +219,15 @@ class AdminTableEnhancementTest extends TestCase
         $this->assertStringContainsString("whereHas('user'", $source);
     }
 
+    public function test_game_record_admin_table_contains_adjust_score_action(): void
+    {
+        $source = file_get_contents(base_path('app/Filament/Resources/GameRecords/Tables/GameRecordsTable.php'));
+
+        $this->assertStringContainsString("Action::make('adjustScore')", $source);
+        $this->assertStringContainsString("TextInput::make('score')", $source);
+        $this->assertStringContainsString("app(OperationLogger::class)->log('game_records', 'adjust_score'", $source);
+    }
+
     public function test_work_exporter_contains_city_email_and_city_code_columns(): void
     {
         $exporter = new WorkExporter(new \Filament\Actions\Exports\Models\Export, [], []);

@@ -141,4 +141,22 @@ class ApiContractTest extends TestCase
             'pickup_address' => '7.16 北京-望京',
         ]);
     }
+
+    public function test_unauthenticated_api_errors_return_the_standard_envelope(): void
+    {
+        $this->postJson('/api/v1/game/records', [
+            'distance' => 1000,
+            'score' => 3000,
+            'duration' => 60,
+        ])
+            ->assertUnauthorized()
+            ->assertJsonStructure([
+                'code',
+                'message',
+                'data',
+                'request_id',
+            ])
+            ->assertJsonPath('code', 401)
+            ->assertJsonPath('message', 'Unauthenticated.');
+    }
 }

@@ -104,6 +104,8 @@ class GameService
      */
     private function formatRecord(GameRecord $record): array
     {
+        $record->loadMissing('user');
+
         $betterCount = GameRecord::query()
             ->where(function ($query) use ($record): void {
                 $query->where('score', '>', $record->score)
@@ -116,6 +118,9 @@ class GameService
 
         return [
             'id' => (string) $record->id,
+            'userId' => (string) $record->user_id,
+            'nickname' => $record->user?->nickname,
+            'employeeNo' => $record->user?->employee_no,
             'distance' => $record->distance,
             'score' => $record->score,
             'rank' => $betterCount + 1,

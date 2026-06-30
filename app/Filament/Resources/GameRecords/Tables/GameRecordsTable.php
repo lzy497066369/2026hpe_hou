@@ -3,13 +3,17 @@
 namespace App\Filament\Resources\GameRecords\Tables;
 
 use App\Filament\Exports\GameRecordExporter;
+use App\Models\GameRecord;
+use App\Services\Admin\OperationLogger;
 use App\Support\AdminDisplay;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ExportAction;
 use Filament\Actions\ExportBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -63,6 +67,27 @@ class GameRecordsTable
                 //
             ])
             ->recordActions([
+                Action::make('adjustScore')
+                    ->label('改成绩')
+                    ->modalHeading('修改游戏成绩')
+                    ->schema([
+                        TextInput::make('score')
+                            ->label('成绩')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0),
+                    ])
+                    ->action(function (GameRecord $record, array $data): void {
+                        $before = $record->score;
+                        $record->update([
+                            'score' => (int) $data['score'],
+                        ]);
+
+                        app(OperationLogger::class)->log('game_records', 'adjust_score', $record, [
+                            'before' => $before,
+                            'after' => (int) $data['score'],
+                        ]);
+                    }),
                 ViewAction::make(),
                 EditAction::make(),
             ])

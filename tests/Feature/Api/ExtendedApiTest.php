@@ -103,7 +103,9 @@ class ExtendedApiTest extends TestCase
         $this->withHeaders($headers)->getJson('/api/v1/game/rankings')
             ->assertOk()
             ->assertJsonPath('data.items.0.score', 3600)
-            ->assertJsonPath('data.mine.score', 3600);
+            ->assertJsonPath('data.mine.score', 3600)
+            ->assertJsonPath('data.mine.nickname', 'demo')
+            ->assertJsonPath('data.mine.employeeNo', 'E0001');
 
         $this->withHeaders($headers)->postJson('/api/v1/auth/logout')
             ->assertOk()
@@ -344,6 +346,41 @@ class ExtendedApiTest extends TestCase
             'distance' => 900,
             'duration' => 55,
         ]);
+    }
+
+    public function test_user_can_submit_high_score_at_current_limit(): void
+    {
+        $user = User::query()->create([
+            'name' => 'High Score User',
+            'email' => 'high-score@example.com',
+            'employee_no' => 'E0100',
+            'nickname' => 'highscore',
+            'password' => 'unused',
+            'status' => 'active',
+        ]);
+
+        $token = $this->postJson('/api/v1/auth/login', [
+            'employeeNo' => $user->employee_no,
+            'email' => $user->email,
+            'nickname' => $user->nickname,
+        ])->json('data.token');
+        $headers = ['Authorization' => 'Bearer '.$token];
+
+        $this->withHeaders($headers)->postJson('/api/v1/game/records', [
+            'distance' => 8200,
+            'score' => 100000000,
+            'duration' => 420,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.score', 100000000)
+            ->assertJsonPath('data.distance', 8200);
+
+        $this->withHeaders($headers)->getJson('/api/v1/game/rankings')
+            ->assertOk()
+            ->assertJsonPath('data.items.0.score', 100000000)
+            ->assertJsonPath('data.mine.score', 100000000)
+            ->assertJsonPath('data.mine.nickname', 'highscore')
+            ->assertJsonPath('data.mine.employeeNo', 'E0100');
     }
 
     public function test_approved_registration_user_still_needs_extra_quota_to_submit_more_than_one_work(): void
